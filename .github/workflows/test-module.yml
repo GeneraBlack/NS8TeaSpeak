@@ -11,6 +11,11 @@ on:
     workflows: ["Publish images"]
     types: [completed]
 
+permissions:
+  issues: write
+  pull-requests: write
+  statuses: write
+
 jobs:
   run:
     name: "Run tests"

@@ -12,8 +12,9 @@ RUN apk update --no-cache \
         unzip \
     && mkdir -p /var/www/TeaWeb \
     && wget -q -O /var/www/TeaWeb/TeaWeb-release.zip "https://github.com/TeaSpeak/TeaWeb/releases/download/${TEAWEB_VERSION}/TeaWeb-release-${TEAWEB_VERSION}.zip" \
-    && unzip -oq /var/www/TeaWeb/TeaWeb-release.zip -d /var/www/TeaWeb \
-    && python3 - <<'PY' \
+    && unzip -oq /var/www/TeaWeb/TeaWeb-release.zip -d /var/www/TeaWeb
+
+RUN python3 - <<'PY'
 from pathlib import Path
 
 index_path = Path("/var/www/TeaWeb/index.html")
@@ -44,8 +45,9 @@ new_snippet = ':"object"===(0,o.default)(e)?e instanceof $?[e]:e&&e.nodeType?[$(
 if old_snippet not in bundle_js:
     raise SystemExit("missing TeaWeb formatMessage patch target")
 bundle_path.write_text(bundle_js.replace(old_snippet, new_snippet, 1), encoding="utf-8")
-PY \
-    && rm /var/www/TeaWeb/TeaWeb-release.zip
+PY
+
+RUN rm /var/www/TeaWeb/TeaWeb-release.zip
 
 ENV TEAWEB_VERSION="${TEAWEB_VERSION}"
 

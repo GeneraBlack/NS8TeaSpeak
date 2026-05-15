@@ -27,13 +27,13 @@ The output contains the created instance name. Example:
 
 This repository now ships an NS8 software repository index under `repository/`.
 
-Preferred public repository URL:
-
-    https://generablack.github.io/NS8TeaSpeak/
-
-Raw fallback URL:
+Currently active repository URL:
 
     https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository
+
+Optional browser-friendly URL after enabling GitHub Pages in the repository settings:
+
+    https://generablack.github.io/NS8TeaSpeak/
 
 To add it from the NS8 web interface:
 
@@ -44,7 +44,7 @@ To add it from the NS8 web interface:
 5. Enter these values:
 
     Name: z-generablack
-    URL: https://generablack.github.io/NS8TeaSpeak/
+    URL: https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository
     Status: enabled
 
 6. Click `Reload repositories`.
@@ -52,7 +52,9 @@ To add it from the NS8 web interface:
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
 The repository bootstrap version for the first GUI-installable release is `0.1.0`.
 
-Note: the raw fallback base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. The GitHub Pages URL above is the human-friendly repository endpoint.
+Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
+
+If you want a browser-friendly repository homepage, enable `Settings -> Pages -> Build and deployment -> Source: GitHub Actions` in the GitHub repository and then rerun the `Deploy software repository to Pages` workflow.
 
 ## Configure
 

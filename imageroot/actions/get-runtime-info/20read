@@ -10,9 +10,22 @@ import agent
 
 def parse_bool(name, default):
     value = os.getenv(name)
-    if value is None:
+    if value is None or value.strip() == "":
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def parse_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
 
 
 def load_runtime_state(path):
@@ -47,7 +60,7 @@ output = {
     "credentials_available": bool(runtime_state.get("credentials_available", False)),
     "credentials_captured_at": runtime_state.get("captured_at", ""),
     "credentials_source": runtime_state.get("source", ""),
-    "query_ssl_mode": int(os.getenv("QUERY_SSL_MODE", "2")),
+    "query_ssl_mode": parse_int("QUERY_SSL_MODE", 2),
     "web_enabled": parse_bool("WEB_ENABLED", True),
     "web_route_host": web_route_host,
     "web_route_configured": bool(route.get("host", "")),

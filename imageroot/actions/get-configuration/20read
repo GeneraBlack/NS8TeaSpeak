@@ -14,9 +14,22 @@ import agent
 
 def parse_bool(name, default):
 	value = os.getenv(name)
-	if value is None:
+	if value is None or value.strip() == "":
 		return default
 	return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def parse_int(name, default):
+	value = os.getenv(name)
+	if value is None:
+		return default
+	value = value.strip()
+	if value == "":
+		return default
+	try:
+		return int(value)
+	except ValueError:
+		return default
 
 
 license_key = os.getenv("LICENSE_KEY", "none")
@@ -24,11 +37,11 @@ if license_key == "none":
 	license_key = ""
 
 config = {
-	"timezone": os.getenv("TIMEZONE", "UTC"),
+	"timezone": (os.getenv("TIMEZONE") or "").strip() or "UTC",
 	"license_key": license_key,
-	"query_ssl_mode": int(os.getenv("QUERY_SSL_MODE", "2")),
+	"query_ssl_mode": parse_int("QUERY_SSL_MODE", 2),
 	"web_enabled": parse_bool("WEB_ENABLED", True),
-	"web_host": os.getenv("TRAEFIK_HOST", ""),
+	"web_host": (os.getenv("TRAEFIK_HOST") or "").strip(),
 	"web_lets_encrypt": agent.get_route(os.environ["MODULE_ID"] + "-web").get(
 		"lets_encrypt",
 		parse_bool("TRAEFIK_LETS_ENCRYPT", False),

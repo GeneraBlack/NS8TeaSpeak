@@ -12,8 +12,7 @@ RUN apk update --no-cache \
     && mkdir -p /var/www/TeaWeb \
     && wget -q -O /var/www/TeaWeb/TeaWeb-release.zip "https://github.com/TeaSpeak/TeaWeb/releases/download/${TEAWEB_VERSION}/TeaWeb-release-${TEAWEB_VERSION}.zip" \
     && unzip -oq /var/www/TeaWeb/TeaWeb-release.zip -d /var/www/TeaWeb \
-    && rm /var/www/TeaWeb/TeaWeb-release.zip \
-    && sed -i /etc/nginx/mime.types -e 's/}/    application\/wasm    wasm;\n}/'
+    && rm /var/www/TeaWeb/TeaWeb-release.zip
 
 ENV TEAWEB_VERSION="${TEAWEB_VERSION}"
 

@@ -24,6 +24,7 @@ ExecStart=/usr/bin/podman run \
     --cidfile=%t/teaspeak.ctr-id \
     --cgroups=no-conmon \
     --replace --name=%N \
+    --user 0 \
     --publish=9987:9987/udp \
     --publish=9987:9987/tcp \
     --publish=10101:10101/tcp \

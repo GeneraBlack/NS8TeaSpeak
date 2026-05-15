@@ -40,6 +40,13 @@ TeaWeb route is reachable for host
     Should Be Equal As Integers    ${rc}  0
     Should Not Be Empty    ${output}
 
+TeaWeb landing page contains NS8 auto-connect bootstrap
+    [Arguments]    ${host}
+    ${output}  ${error}  ${rc} =    Execute Command    curl -s -S -k -H "Host: ${host}" https://127.0.0.1/
+    ...    return_rc=True  return_stdout=True  return_stderr=True
+    Should Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    ns8TeaSpeakAutoConnect
+
 TeaWeb certificate should be issued by Let's Encrypt
     [Arguments]    ${host}
     ${output}  ${error}  ${rc} =    Execute Command    openssl s_client -connect 127.0.0.1:443 -servername ${host} </dev/null 2>/dev/null | openssl x509 -noout -issuer
@@ -116,6 +123,9 @@ Check if teaspeak web service is active
 
 Check if TeaWeb Traefik route is reachable with configured host header
     Wait Until Keyword Succeeds    20 times    3 seconds    TeaWeb route is reachable for host    ${TEST_WEB_HOST}
+
+Check if TeaWeb landing page injects the NS8 auto-connect bootstrap
+    Wait Until Keyword Succeeds    20 times    3 seconds    TeaWeb landing page contains NS8 auto-connect bootstrap    ${TEST_WEB_HOST}
 
 Check optional Let's Encrypt issuance for TeaWeb
     ${public_fqdn} =    Evaluate    os.getenv("TEASPEAK_PUBLIC_FQDN", "").strip().lower()    modules=os

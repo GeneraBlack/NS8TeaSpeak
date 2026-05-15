@@ -12,12 +12,18 @@ RUN apt-get update \
         python3 \
         tzdata \
         wget \
+        yt-dlp \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /ts /ts/logs /ts/certs /ts/files /ts/database /ts/config /ts/crash_dumps \
     && wget -nv -O /tmp/TeaSpeak.tar.gz "https://repo.teaspeak.de/server/linux/amd64_stable/TeaSpeak-${TEASPEAK_VERSION}.tar.gz" \
     && tar -xzf /tmp/TeaSpeak.tar.gz -C /ts \
     && rm /tmp/TeaSpeak.tar.gz \
+    && mkdir -p /ts/providers \
     && printf '' > /ts/config/config.yml \
+    && printf '[general]\nffmpeg_command=/usr/bin/ffmpeg\n' > /ts/providers/config_ffmpeg.ini \
+    && printf '[general]\nyoutubedl_command=/usr/local/bin/youtube-dl\n' > /ts/providers/config_youtube.ini \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && ln -sf /usr/bin/yt-dlp /usr/local/bin/youtube-dl \
     && ln -sf /ts/config/config.yml /ts/config.yml \
     && groupadd -g ${gid} teaspeak \
     && useradd -M -u ${uid} -g ${gid} teaspeak \

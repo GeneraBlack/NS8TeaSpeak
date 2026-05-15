@@ -104,3 +104,9 @@ dist
 .tern-port
 
 tests/outputs/
+
+# Local investigation artifacts
+.tmp-teaspeak/
+.tmp-teaweb/
+publish-run-*.zip
+publish-run-*-logs/

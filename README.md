@@ -85,7 +85,18 @@ When `web_enabled` is true, the module starts a bundled TeaWeb sidecar on an int
 Set `web_host` to publish TeaWeb through Traefik. If `web_lets_encrypt` is true, the module asks Traefik to obtain a Let's Encrypt certificate for that hostname.
 If `web_host` is left empty, TeaWeb remains enabled internally but no public Traefik route is created.
 
+The TeaWeb landing page now auto-adds `connect_default=1` and `connect_address=<requested host>` when the public URL is opened without query parameters.
+In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt against the same hostname on TeaSpeak's default client port `9987`.
+
+TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
+The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.
+
+Important: Traefik's Let's Encrypt certificate only covers the TeaWeb HTTPS route.
+If TeaSpeak itself still serves an untrusted certificate on port `9987`, browsers may require a one-time certificate acceptance before TeaWeb can connect successfully.
+
 When `music_enabled` is true, the module enables TeaSpeak's built-in music bot system in the server configuration.
+The service image now also ships the upstream runtime prerequisites for the built-in music providers: `ffmpeg`, `python3`, a `python` compatibility symlink and a `youtube-dl` compatibility command backed by `yt-dlp`.
+It also pre-creates the TeaSpeak provider config files so the music bot resolves the packaged binaries explicitly instead of depending on ad-hoc in-container setup.
 There is no separate TeaMusic runtime image integrated yet because the upstream TeaMusic repository does not currently provide a stable, documented release artifact for direct deployment.
 
 ## Initial credentials

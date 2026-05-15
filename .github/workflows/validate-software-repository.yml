@@ -131,6 +131,29 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: Validate TeaSpeak music runtime hooks
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          containerfile = Path("images/teaspeak-service/Containerfile").read_text(encoding="utf-8")
+          required = [
+              "yt-dlp",
+              "config_ffmpeg.ini",
+              "config_youtube.ini",
+              "ln -sf /usr/bin/python3 /usr/local/bin/python",
+              "ln -sf /usr/bin/yt-dlp /usr/local/bin/youtube-dl",
+          ]
+          missing = [snippet for snippet in required if snippet not in containerfile]
+
+          if missing:
+              print("The TeaSpeak service image is missing required music runtime hooks:", file=sys.stderr)
+              for snippet in missing:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
+
       - name: Validate TeaWeb nginx config
         run: |
           docker run --rm \
@@ -138,6 +161,27 @@ jobs:
             -v "$PWD/images/teaspeak-web/nginx.conf:/etc/nginx/nginx.conf:ro" \
             nginx:1.30.1-alpine3.23-slim \
             nginx -t
+
+      - name: Validate TeaWeb runtime patch hooks
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          containerfile = Path("images/teaspeak-web/Containerfile").read_text(encoding="utf-8")
+          required = [
+              "ns8TeaSpeakAutoConnect",
+              'url.searchParams.set("connect_default","1");',
+              'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
+          ]
+          missing = [snippet for snippet in required if snippet not in containerfile]
+
+          if missing:
+              print("The TeaWeb image build is missing required runtime patch hooks:", file=sys.stderr)
+              for snippet in missing:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - name: Validate repository index
         run: python scripts/build_repository_index.py --check

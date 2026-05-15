@@ -8,10 +8,43 @@ COPY nginx.conf /etc/nginx/nginx.conf
 RUN apk update --no-cache \
     && apk upgrade --no-cache \
     && apk add --no-cache \
+        python3 \
         unzip \
     && mkdir -p /var/www/TeaWeb \
     && wget -q -O /var/www/TeaWeb/TeaWeb-release.zip "https://github.com/TeaSpeak/TeaWeb/releases/download/${TEAWEB_VERSION}/TeaWeb-release-${TEAWEB_VERSION}.zip" \
     && unzip -oq /var/www/TeaWeb/TeaWeb-release.zip -d /var/www/TeaWeb \
+    && python3 - <<'PY' \
+from pathlib import Path
+
+index_path = Path("/var/www/TeaWeb/index.html")
+index_html = index_path.read_text(encoding="utf-8")
+auto_connect_marker = "ns8TeaSpeakAutoConnect"
+auto_connect_script = (
+    '<script>/* ns8TeaSpeakAutoConnect */(function(){'
+    'var url=new URL(window.location.href);'
+    'if(url.search.length!==0||url.searchParams.has("connect_default")||'
+    'url.searchParams.has("connect_address")||url.searchParams.has("ca"))return;'
+    'url.searchParams.set("connect_default","1");'
+    'url.searchParams.set("connect_address",window.location.hostname);'
+    'window.location.replace(url.toString());'
+    '})();</script>'
+)
+
+if auto_connect_marker not in index_html:
+    injection_point = '<meta http-equiv="X-UA-Compatible"content="IE=edge,chrome=1">'
+    if injection_point not in index_html:
+        raise SystemExit("missing TeaWeb index injection point")
+    index_html = index_html.replace(injection_point, injection_point + auto_connect_script, 1)
+    index_path.write_text(index_html, encoding="utf-8")
+
+bundle_path = Path("/var/www/TeaWeb/js/fe0f4941c6e0916d1f9a.js")
+bundle_js = bundle_path.read_text(encoding="utf-8")
+old_snippet = ':"object"===(0,o.default)(e)?e instanceof $?[e]:b("<unknwon object>"):"function"==typeof e?'
+new_snippet = ':"object"===(0,o.default)(e)?e instanceof $?[e]:e&&e.nodeType?[$(e)]:b("<unknwon object>"):"function"==typeof e?'
+if old_snippet not in bundle_js:
+    raise SystemExit("missing TeaWeb formatMessage patch target")
+bundle_path.write_text(bundle_js.replace(old_snippet, new_snippet, 1), encoding="utf-8")
+PY \
     && rm /var/www/TeaWeb/TeaWeb-release.zip
 
 ENV TEAWEB_VERSION="${TEAWEB_VERSION}"

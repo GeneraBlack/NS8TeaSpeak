@@ -1,0 +1,45 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "get-configuration output",
+    "$id": "http://schema.nethserver.org/teaspeak/get-configuration-output.json",
+    "description": "Get TeaSpeak configuration",
+    "examples": [],
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "timezone": {
+            "type": "string"
+        },
+        "license_key": {
+            "type": "string"
+        },
+        "query_ssl_mode": {
+            "type": "integer"
+        },
+        "web_enabled": {
+            "type": "boolean"
+        },
+        "web_host": {
+            "type": "string"
+        },
+        "web_lets_encrypt": {
+            "type": "boolean"
+        },
+        "music_enabled": {
+            "type": "boolean"
+        },
+        "vpn_check_enabled": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "timezone",
+        "license_key",
+        "query_ssl_mode",
+        "web_enabled",
+        "web_host",
+        "web_lets_encrypt",
+        "music_enabled",
+        "vpn_check_enabled"
+    ]
+}

@@ -1,0 +1,30 @@
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+[Unit]
+Description=TeaSpeak web client
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+EnvironmentFile=%S/state/environment
+WorkingDirectory=%S/state
+Restart=always
+ExecStartPre=/bin/rm -f %t/teaspeak-web.pid %t/teaspeak-web.ctr-id
+ExecStart=/usr/bin/podman run \
+    --detach \
+    --conmon-pidfile=%t/teaspeak-web.pid \
+    --cidfile=%t/teaspeak-web.ctr-id \
+    --cgroups=no-conmon \
+    --replace --name=%N \
+    --publish=127.0.0.1:${TCP_PORT}:80/tcp \
+    --env=TZ=${TIMEZONE} \
+    ${TEASPEAK_WEB_IMAGE}
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/teaspeak-web.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/teaspeak-web.ctr-id
+PIDFile=%t/teaspeak-web.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

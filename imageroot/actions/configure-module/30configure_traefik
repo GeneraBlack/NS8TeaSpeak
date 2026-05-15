@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+import json
+import os
+
+import agent
+
+
+def delete_route(route_instance):
+    agent.tasks.run(
+        agent_id=agent.resolve_agent_id("traefik@node"),
+        action="delete-route",
+        data={"instance": route_instance},
+        extra={"isNotificationHidden": True},
+    )
+
+
+request = json.load(sys.stdin)
+web_enabled = bool(request.get("web_enabled", True))
+web_host = (request.get("web_host") or "").strip().lower()
+web_lets_encrypt = bool(request.get("web_lets_encrypt", False))
+route_instance = os.environ["MODULE_ID"] + "-web"
+
+if not web_enabled or not web_host:
+    delete_route(route_instance)
+else:
+    agent.set_route(
+        {
+            "instance": route_instance,
+            "url": f'http://127.0.0.1:{os.environ["TCP_PORT"]}',
+            "host": web_host,
+            "http2https": True,
+            "lets_encrypt": web_lets_encrypt,
+        }
+    )

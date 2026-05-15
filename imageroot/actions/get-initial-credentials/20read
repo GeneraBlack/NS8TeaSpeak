@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import json
+import os
+from pathlib import Path
+import sys
+
+
+def load_runtime_state(path):
+    if not path.exists():
+        return {}
+
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            data = json.load(stream)
+        if isinstance(data, dict):
+            return data
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    return {}
+
+
+state_dir = Path(os.environ["AGENT_STATE_DIR"])
+runtime_state = load_runtime_state(state_dir / "runtime" / "runtime-info.json")
+
+output = {
+    "available": bool(runtime_state.get("credentials_available", False)),
+    "server_admin_privilege_key": runtime_state.get("server_admin_privilege_key", ""),
+    "server_query_password": runtime_state.get("server_query_password", ""),
+    "captured_at": runtime_state.get("captured_at", ""),
+    "source": runtime_state.get("source", ""),
+    "server_admin_privilege_key_line": runtime_state.get(
+        "server_admin_privilege_key_line", ""
+    ),
+    "server_query_password_line": runtime_state.get(
+        "server_query_password_line", ""
+    ),
+}
+
+json.dump(output, fp=sys.stdout)

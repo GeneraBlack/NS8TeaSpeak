@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+import json
+import os
+import sys
+
+import agent
+
+
+def parse_bool(name, default):
+	value = os.getenv(name)
+	if value is None:
+		return default
+	return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+license_key = os.getenv("LICENSE_KEY", "none")
+if license_key == "none":
+	license_key = ""
+
+config = {
+	"timezone": os.getenv("TIMEZONE", "UTC"),
+	"license_key": license_key,
+	"query_ssl_mode": int(os.getenv("QUERY_SSL_MODE", "2")),
+	"web_enabled": parse_bool("WEB_ENABLED", True),
+	"web_host": os.getenv("TRAEFIK_HOST", ""),
+	"web_lets_encrypt": agent.get_route(os.environ["MODULE_ID"] + "-web").get(
+		"lets_encrypt",
+		parse_bool("TRAEFIK_LETS_ENCRYPT", False),
+	),
+	"music_enabled": parse_bool("MUSIC_ENABLED", False),
+	"vpn_check_enabled": parse_bool("VPN_CHECK_ENABLED", False),
+}
+
+json.dump(config, fp=sys.stdout)

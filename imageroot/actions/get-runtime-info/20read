@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import json
+import os
+from pathlib import Path
+import sys
+
+import agent
+
+
+def parse_bool(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def load_runtime_state(path):
+    if not path.exists():
+        return {}
+
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            data = json.load(stream)
+        if isinstance(data, dict):
+            return data
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    return {}
+
+
+state_dir = Path(os.environ["AGENT_STATE_DIR"])
+runtime_state = load_runtime_state(state_dir / "runtime" / "runtime-info.json")
+route_instance = os.environ["MODULE_ID"] + "-web"
+route = agent.get_route(route_instance)
+web_route_host = route.get("host", "") or os.getenv("TRAEFIK_HOST", "")
+web_route_https = parse_bool("TRAEFIK_HTTP2HTTPS", True)
+web_public_url = ""
+
+if web_route_host:
+    web_public_scheme = "https" if web_route_https else "http"
+    web_public_url = f"{web_public_scheme}://{web_route_host}"
+
+output = {
+    "server_version": runtime_state.get("server_version", ""),
+    "credentials_available": bool(runtime_state.get("credentials_available", False)),
+    "credentials_captured_at": runtime_state.get("captured_at", ""),
+    "credentials_source": runtime_state.get("source", ""),
+    "query_ssl_mode": int(os.getenv("QUERY_SSL_MODE", "2")),
+    "web_enabled": parse_bool("WEB_ENABLED", True),
+    "web_route_host": web_route_host,
+    "web_route_configured": bool(route.get("host", "")),
+    "web_route_lets_encrypt": bool(
+        route.get("lets_encrypt", parse_bool("TRAEFIK_LETS_ENCRYPT", False))
+    ),
+    "web_public_url": web_public_url,
+    "music_enabled": parse_bool("MUSIC_ENABLED", False),
+    "vpn_check_enabled": parse_bool("VPN_CHECK_ENABLED", False),
+}
+
+json.dump(output, fp=sys.stdout)

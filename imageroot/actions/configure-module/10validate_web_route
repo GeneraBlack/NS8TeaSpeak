@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import sys
+
+import agent
+
+
+agent.set_weight(os.path.basename(__file__), 0)
+
+request = json.load(sys.stdin)
+web_enabled = bool(request.get("web_enabled", True))
+web_host = (request.get("web_host") or "").strip().lower()
+old_host = os.environ.get("TRAEFIK_HOST", "")
+
+if not web_enabled or not web_host or web_host == old_host:
+    sys.exit(0)
+
+if agent.http_route_in_use(domain=web_host):
+    agent.set_status("validation-failed")
+    json.dump(
+        [
+            {
+                "field": "webHost",
+                "parameter": "web_host",
+                "value": web_host,
+                "error": "domain_already_used_in_traefik",
+            }
+        ],
+        fp=sys.stdout,
+    )
+    sys.exit(2)

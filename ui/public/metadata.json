@@ -1,0 +1,18 @@
+{
+  "name": "TeaSpeak",
+  "description": {
+    "en": "Voice communication server for NethServer 8 based on TeaSpeak 1.5.6"
+  },
+  "categories": ["communication"],
+  "authors": [
+    {
+      "name": "NS8TeaSpeak contributors"
+    }
+  ],
+  "docs": {
+    "documentation_url": "https://teaspeak.de/",
+    "bug_url": "https://github.com/TeaSpeak/TeaDocker/issues",
+    "code_url": "https://github.com/TeaSpeak/TeaDocker"
+  },
+  "source": "ghcr.io/nethserver/teaspeak"
+}

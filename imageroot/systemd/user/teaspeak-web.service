@@ -20,7 +20,7 @@ ExecStart=/usr/bin/podman run \
     --replace --name=%N \
     --publish=127.0.0.1:${TCP_PORT}:80/tcp \
     --env=TZ=${TIMEZONE} \
-    ${TEASPEAK_WEB_IMAGE}
+    ${NS8TEASPEAK_WEB_IMAGE}
 ExecStop=/usr/bin/podman stop --ignore --cidfile %t/teaspeak-web.ctr-id -t 10
 ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/teaspeak-web.ctr-id
 PIDFile=%t/teaspeak-web.pid

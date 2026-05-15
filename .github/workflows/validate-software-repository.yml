@@ -6,6 +6,7 @@ on:
       - .gitattributes
       - .github/workflows/validate-software-repository.yml
       - imageroot/actions/**
+      - imageroot/systemd/**
       - repository/**
       - scripts/build_repository_index.py
       - ui/src/assets/module_default_logo.png
@@ -15,6 +16,7 @@ on:
       - .gitattributes
       - .github/workflows/validate-software-repository.yml
       - imageroot/actions/**
+      - imageroot/systemd/**
       - repository/**
       - scripts/build_repository_index.py
       - ui/src/assets/module_default_logo.png
@@ -85,6 +87,35 @@ jobs:
                   print(path, file=sys.stderr)
                 sys.exit(1)
               PY
+
+              - name: Validate systemd unit placeholders
+              run: |
+                python - <<'PY'
+                import re
+                import sys
+                from pathlib import Path
+
+                allowed = {
+                  "TIMEZONE",
+                  "TCP_PORT",
+                  "NS8TEASPEAK_SERVICE_IMAGE",
+                  "NS8TEASPEAK_WEB_IMAGE",
+                }
+                invalid = {}
+                pattern = re.compile(r"\$\{([A-Z0-9_]+)\}")
+
+                for path in sorted(Path("imageroot/systemd/user").glob("*.service")):
+                  placeholders = sorted(set(pattern.findall(path.read_text(encoding="utf-8"))))
+                  unknown = [name for name in placeholders if name not in allowed]
+                  if unknown:
+                    invalid[path.as_posix()] = unknown
+
+                if invalid:
+                  print("The following systemd units reference unknown environment placeholders:", file=sys.stderr)
+                  for path, names in invalid.items():
+                    print(f"{path}: {', '.join(names)}", file=sys.stderr)
+                  sys.exit(1)
+                PY
 
       - name: Validate repository index
         run: python scripts/build_repository_index.py --check

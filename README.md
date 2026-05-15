@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.3`.
+The repository currently advertises GUI release `0.1.4`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -132,7 +132,7 @@ To publish a new GUI-installable stable release:
 1. Update `VERSION` if needed.
 2. Run `python scripts/build_repository_index.py`.
 3. Commit and push the repository changes.
-4. Create and push the matching Git tag, for example `0.1.3`.
+4. Create and push the matching Git tag, for example `0.1.4`.
 
 The existing `publish-images.yml` workflow will publish that semantic image tag automatically, and the GUI repository will then resolve to the stable image instead of the bootstrap fallback.
 

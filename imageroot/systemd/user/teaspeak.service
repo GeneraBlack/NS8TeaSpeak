@@ -36,7 +36,7 @@ ExecStart=/usr/bin/podman run \
     --volume=./config:/ts/config:Z \
     --volume=./runtime:/ts/module_state:Z \
     --env=TZ=${TIMEZONE} \
-    ${TEASPEAK_SERVICE_IMAGE}
+    ${NS8TEASPEAK_SERVICE_IMAGE}
 ExecStop=/usr/bin/podman stop --ignore --cidfile %t/teaspeak.ctr-id -t 10
 ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/teaspeak.ctr-id
 PIDFile=%t/teaspeak.pid

@@ -27,6 +27,14 @@ The output contains the created instance name. Example:
 
 This repository now ships an NS8 software repository index under `repository/`.
 
+Preferred public repository URL:
+
+    https://generablack.github.io/NS8TeaSpeak/
+
+Raw fallback URL:
+
+    https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository
+
 To add it from the NS8 web interface:
 
 1. Open `Software center`.
@@ -36,13 +44,15 @@ To add it from the NS8 web interface:
 5. Enter these values:
 
     Name: z-generablack
-    URL: https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository
+    URL: https://generablack.github.io/NS8TeaSpeak/
     Status: enabled
 
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
 The repository bootstrap version for the first GUI-installable release is `0.1.0`.
+
+Note: the raw fallback base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. The GitHub Pages URL above is the human-friendly repository endpoint.
 
 ## Configure
 

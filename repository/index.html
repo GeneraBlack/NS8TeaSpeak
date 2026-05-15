@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NS8 TeaSpeak Repository</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f3ee;
+        --panel: #fffdf8;
+        --text: #1d1b19;
+        --muted: #6b6258;
+        --accent: #0f766e;
+        --border: #ded6ca;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #fff9ef 0%, var(--bg) 55%);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .hero img {
+        width: 96px;
+        height: 96px;
+        border-radius: 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.6;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      .tile {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px;
+        background: #fff;
+      }
+
+      .tile h2 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      code {
+        display: block;
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f2ede5;
+        color: #2d2926;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 640px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <div class="hero">
+          <img src="ns8teaspeak/logo.png" alt="TeaSpeak logo">
+          <div>
+            <h1>NS8 TeaSpeak Repository</h1>
+            <p class="muted">Public NS8 software repository for installing TeaSpeak from the NethServer 8 Software Center.</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="tile">
+            <h2>Repository URL for NS8</h2>
+            <p>Use this URL in Software repositories inside the NS8 UI.</p>
+            <code id="repo-url">https://generablack.github.io/NS8TeaSpeak/</code>
+          </div>
+          <div class="tile">
+            <h2>Metadata</h2>
+            <p><a href="repodata.json">Open repodata.json</a></p>
+            <p><a href="ns8teaspeak/metadata.json">Open module metadata</a></p>
+          </div>
+          <div class="tile">
+            <h2>Source code</h2>
+            <p><a href="https://github.com/GeneraBlack/NS8TeaSpeak">GitHub repository</a></p>
+            <p><a href="https://github.com/GeneraBlack/NS8TeaSpeak/releases">Releases</a></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+  </html>

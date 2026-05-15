@@ -23,6 +23,27 @@ The output contains the created instance name. Example:
 
     {"module_id": "ns8teaspeak1", "image_name": "ns8teaspeak", "image_url": "ghcr.io/generablack/ns8teaspeak:latest"}
 
+## Install from GUI
+
+This repository now ships an NS8 software repository index under `repository/`.
+
+To add it from the NS8 web interface:
+
+1. Open `Software center`.
+2. Open the three-dots menu in the top-right corner.
+3. Choose `Software repositories`.
+4. Click `Add repository`.
+5. Enter these values:
+
+    Name: z-generablack
+    URL: https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository
+    Status: enabled
+
+6. Click `Reload repositories`.
+
+TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
+The repository bootstrap version for the first GUI-installable release is `0.1.0`.
+
 ## Configure
 
 Assuming the instance is named `ns8teaspeak1`, configure it with:
@@ -83,6 +104,25 @@ You can override the upstream binary version with:
 You can override the TeaWeb client release with:
 
     TEAWEB_VERSION=59737567 bash build-images.sh
+
+## Build the NS8 software repository index
+
+The static NS8 repository index for GUI installation is stored in `repository/`.
+Rebuild it with:
+
+    python scripts/build_repository_index.py
+
+The generator reads the module metadata from `repository/ns8teaspeak/metadata.json`, copies the logo from the repository tree and resolves image labels from GHCR.
+For the first stable GUI release it bootstraps version `0.1.0` from the published `latest` image until the real `0.1.0` image tag exists.
+
+To publish a new GUI-installable stable release:
+
+1. Update `VERSION` if needed.
+2. Run `python scripts/build_repository_index.py`.
+3. Commit and push the repository changes.
+4. Create and push the matching Git tag, for example `0.1.0`.
+
+The existing `publish-images.yml` workflow will publish that semantic image tag automatically, and the GUI repository will then resolve to the stable image instead of the bootstrap fallback.
 
 ## Uninstall
 

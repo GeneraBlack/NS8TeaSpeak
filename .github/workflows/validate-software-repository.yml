@@ -1,0 +1,32 @@
+name: Validate software repository
+
+on:
+  push:
+    paths:
+      - .github/workflows/validate-software-repository.yml
+      - repository/**
+      - scripts/build_repository_index.py
+      - ui/src/assets/module_default_logo.png
+      - VERSION
+  pull_request:
+    paths:
+      - .github/workflows/validate-software-repository.yml
+      - repository/**
+      - scripts/build_repository_index.py
+      - ui/src/assets/module_default_logo.png
+      - VERSION
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate repository index
+        run: python scripts/build_repository_index.py --check

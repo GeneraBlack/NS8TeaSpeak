@@ -15,5 +15,5 @@ jobs:
     steps:
       - uses: NethServer/ns8-github-actions/.github/actions/delete-image@v1
         with:
-          images: "teaspeak teaspeak-service"
+          images: "ns8teaspeak ns8teaspeak-service ns8teaspeak-web"
           delete_image_token: ${{ secrets.IMAGES_CLEANUP_TOKEN }}

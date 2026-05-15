@@ -14,5 +14,5 @@
     "bug_url": "https://github.com/TeaSpeak/TeaDocker/issues",
     "code_url": "https://github.com/TeaSpeak/TeaDocker"
   },
-  "source": "ghcr.io/nethserver/teaspeak"
+  "source": "ghcr.io/generablack/ns8teaspeak"
 }

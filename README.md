@@ -17,17 +17,17 @@ This repository packages a rootless TeaSpeak deployment for NS8 with these MVP d
 
 Instantiate the module with:
 
-    add-module ghcr.io/nethserver/teaspeak:latest 1
+    add-module ghcr.io/generablack/ns8teaspeak:latest 1
 
 The output contains the created instance name. Example:
 
-    {"module_id": "teaspeak1", "image_name": "teaspeak", "image_url": "ghcr.io/nethserver/teaspeak:latest"}
+    {"module_id": "ns8teaspeak1", "image_name": "ns8teaspeak", "image_url": "ghcr.io/generablack/ns8teaspeak:latest"}
 
 ## Configure
 
-Assuming the instance is named `teaspeak1`, configure it with:
+Assuming the instance is named `ns8teaspeak1`, configure it with:
 
-    api-cli run module/teaspeak1/configure-module --data '{"timezone":"UTC","query_ssl_mode":2,"web_enabled":true,"web_host":"teaspeak.example.org","web_lets_encrypt":true,"music_enabled":false,"vpn_check_enabled":false,"license_key":""}'
+    api-cli run module/ns8teaspeak1/configure-module --data '{"timezone":"UTC","query_ssl_mode":2,"web_enabled":true,"web_host":"teaspeak.example.org","web_lets_encrypt":true,"music_enabled":false,"vpn_check_enabled":false,"license_key":""}'
 
 The action will:
 
@@ -66,9 +66,9 @@ If an instance was initialized before credential capture support was added, the 
 
 The build produces three images:
 
-- `teaspeak`: the NS8 module package image
-- `teaspeak-service`: the TeaSpeak runtime image used by the module
-- `teaspeak-web`: the TeaWeb runtime image used when `web_enabled` is true
+- `ns8teaspeak`: the NS8 module package image
+- `ns8teaspeak-service`: the TeaSpeak runtime image used by the module
+- `ns8teaspeak-web`: the TeaWeb runtime image used when `web_enabled` is true
 
 The module also requests one internal TCP port from NS8 for the TeaWeb loopback backend behind Traefik.
 
@@ -88,7 +88,7 @@ You can override the TeaWeb client release with:
 
 To remove the instance:
 
-    remove-module --no-preserve teaspeak1
+    remove-module --no-preserve ns8teaspeak1
 
 ## Running tests locally
 

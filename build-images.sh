@@ -13,7 +13,7 @@ images=()
 # The image will be pushed to GitHub container registry
 repobase="${REPOBASE:-ghcr.io/nethserver}"
 # Configure image names
-reponame="teaspeak"
+reponame="${REPONAME:-ns8teaspeak}"
 servicename="${reponame}-service"
 webservicename="${reponame}-web"
 imagetag="${IMAGETAG:-latest}"

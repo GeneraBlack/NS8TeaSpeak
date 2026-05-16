@@ -131,25 +131,25 @@ jobs:
               sys.exit(1)
           PY
 
-          - name: Validate image names are normalized in build script
-          run: |
-            python - <<'PY'
-            import sys
-            from pathlib import Path
+      - name: Validate image names are normalized in build script
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
 
-            script = Path("build-images.sh").read_text(encoding="utf-8")
-            required = [
+          script = Path("build-images.sh").read_text(encoding="utf-8")
+          required = [
               'repobase="${repobase,,}"',
               'reponame="${reponame,,}"',
-            ]
-            missing = [snippet for snippet in required if snippet not in script]
+          ]
+          missing = [snippet for snippet in required if snippet not in script]
 
-            if missing:
+          if missing:
               print("build-images.sh must normalize image names to lowercase:", file=sys.stderr)
               for snippet in missing:
-                print(snippet, file=sys.stderr)
+                  print(snippet, file=sys.stderr)
               sys.exit(1)
-            PY
+          PY
 
       - name: Validate TeaSpeak music runtime hooks
         run: |

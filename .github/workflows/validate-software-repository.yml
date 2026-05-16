@@ -1,33 +1,33 @@
 name: Validate software repository
 
 on:
-  push:
-    paths:
-      - .gitattributes
-      - .github/workflows/validate-software-repository.yml
-      - imageroot/actions/**
+    push:
+        paths:
+            - .gitattributes
+            - .github/workflows/validate-software-repository.yml
+            - imageroot/actions/**
             - imageroot/events/**
-      - imageroot/systemd/**
+            - imageroot/systemd/**
             - imageroot/update-module.d/**
-      - images/**
-      - repository/**
-      - scripts/build_repository_index.py
-      - ui/src/assets/module_default_logo.png
-      - VERSION
-  pull_request:
-    paths:
-      - .gitattributes
-      - .github/workflows/validate-software-repository.yml
-      - imageroot/actions/**
+            - images/**
+            - repository/**
+            - scripts/build_repository_index.py
+            - ui/src/assets/module_default_logo.png
+            - VERSION
+    pull_request:
+        paths:
+            - .gitattributes
+            - .github/workflows/validate-software-repository.yml
+            - imageroot/actions/**
             - imageroot/events/**
-      - imageroot/systemd/**
+            - imageroot/systemd/**
             - imageroot/update-module.d/**
-      - images/**
-      - repository/**
-      - scripts/build_repository_index.py
-      - ui/src/assets/module_default_logo.png
-      - VERSION
-  workflow_dispatch:
+            - images/**
+            - repository/**
+            - scripts/build_repository_index.py
+            - ui/src/assets/module_default_logo.png
+            - VERSION
+    workflow_dispatch:
 
 jobs:
   validate:
@@ -173,31 +173,40 @@ jobs:
               sys.exit(1)
           PY
 
-            - name: Validate module authorizations include certificate access
-                run: |
-                    python - <<'PY'
-                    import sys
-                    from pathlib import Path
+      - name: Validate module authorizations include certificate access
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
 
-                    script = Path("build-images.sh").read_text(encoding="utf-8")
-                    required = 'org.nethserver.authorizations=node:fwadm traefik@node:fulladm'
-                    if required not in script:
-                            print("build-images.sh must request traefik@node:fulladm for certificate sync.", file=sys.stderr)
-                            sys.exit(1)
-                    PY
+          script = Path("build-images.sh").read_text(encoding="utf-8")
+          required = 'org.nethserver.authorizations=node:fwadm traefik@node:fulladm'
+          if required not in script:
+              print("build-images.sh must request traefik@node:fulladm for certificate sync.", file=sys.stderr)
+              sys.exit(1)
+          PY
 
-            - name: Validate TeaSpeak persistent database path
-                run: |
-                    python - <<'PY'
-                    import sys
-                    from pathlib import Path
+      - name: Validate TeaSpeak config persistence and TLS paths
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
 
-                    config_action = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
-                    required = 'sqlite://database/TeaData.sqlite'
-                    if required not in config_action:
-                            print("configure-module must point TeaSpeak at the persisted database volume.", file=sys.stderr)
-                            sys.exit(1)
-                    PY
+          config_action = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
+          required = [
+              'sqlite://database/TeaData.sqlite',
+              'certificate: "certs/query_certificate.pem"',
+              'privatekey: "certs/query_privatekey.pem"',
+              'certificate: "certs/default_certificate.pem"',
+              'privatekey: "certs/default_privatekey.pem"',
+          ]
+          missing = [snippet for snippet in required if snippet not in config_action]
+          if missing:
+              print("configure-module must persist the database and wire TeaSpeak TLS paths explicitly.", file=sys.stderr)
+              for snippet in missing:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - name: Validate TeaSpeak music runtime hooks
         run: |
@@ -309,6 +318,7 @@ jobs:
               sys.exit(1)
 
           required_unit = [
+              "SuccessExitStatus=3",
               "runagent get-certificate",
               "runtime/tls/default_certificate.pem",
               "runtime/tls/default_privatekey.pem",

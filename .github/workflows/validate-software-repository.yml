@@ -287,7 +287,12 @@ jobs:
           required = [
               "ns8TeaSpeakAutoConnect",
               'url.searchParams.set("connect_default","1");',
+              'url.searchParams.set("connect_no_dnsproxy","true");',
               'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
+              'missing TeaWeb DNS preserve-host patch target',
+              'resolved_server_hostname:s.resolvedAddress.hostname',
+              'missing TeaWeb certificate callback address patch target',
+              'missing TeaWeb certificate callback URL patch target',
           ]
           forbidden = ['url.searchParams.has("ca")']
           missing = [snippet for snippet in required if snippet not in containerfile]

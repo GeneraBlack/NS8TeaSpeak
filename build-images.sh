@@ -18,6 +18,8 @@ reponame="${REPONAME:-ns8teaspeak}"
 reponame="${reponame,,}"
 servicename="${reponame}-service"
 webservicename="${reponame}-web"
+stunimage="${NS8TEASPEAK_STUN_IMAGE:-docker.io/coturn/coturn:4.6.3}"
+stunimage="${stunimage,,}"
 imagetag="${IMAGETAG:-latest}"
 uinodeimage="docker.io/library/node:16.20.2-bullseye-slim"
 uibuilder="nodebuilder-${reponame}-node16"
@@ -59,7 +61,7 @@ buildah config --entrypoint=/ \
     --label="org.nethserver.rootfull=0" \
     --label="org.nethserver.max-per-node=1" \
     --label="org.nethserver.tcp-ports-demand=1" \
-    --label="org.nethserver.images=${repobase}/${servicename}:${imagetag} ${repobase}/${webservicename}:${imagetag}" \
+    --label="org.nethserver.images=${repobase}/${servicename}:${imagetag} ${repobase}/${webservicename}:${imagetag} ${stunimage}" \
     --label="org.nethserver.volumes=database files logs crashdumps certs" \
     "${container}"
 

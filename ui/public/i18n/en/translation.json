@@ -25,6 +25,8 @@
         "compatibility_port": "Client compatibility TCP port",
         "query_port": "ServerQuery",
         "file_port": "File transfer",
+        "stun_port": "TeaWeb STUN discovery",
+        "webrtc_media_ports": "TeaWeb WebRTC media",
         "runtime_integration": "Runtime integration",
         "server_version": "Server version",
         "credential_capture_status": "Credential capture",

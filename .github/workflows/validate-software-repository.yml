@@ -124,6 +124,7 @@ jobs:
               "TCP_PORT",
               "NS8TEASPEAK_SERVICE_IMAGE",
               "NS8TEASPEAK_WEB_IMAGE",
+              "NS8TEASPEAK_STUN_IMAGE",
           }
           invalid = {}
           pattern = re.compile(r"\$\{([A-Z0-9_]+)\}")
@@ -202,6 +203,11 @@ jobs:
               'privatekey: "/ts/certs/query_privatekey.pem"',
               'certificate: "/ts/certs/default_certificate.pem"',
               'privatekey: "/ts/certs/default_privatekey.pem"',
+              'webrtc:',
+              'port_min: 50000',
+              'port_max: 50020',
+              'host: "stun.l.google.com"',
+              'port: 19302',
           ]
           missing = [snippet for snippet in required if snippet not in config_action]
           required_entrypoint = [
@@ -309,6 +315,9 @@ jobs:
               'var shouldNormalize=url.searchParams.has("connect_default")&&localAddress;',
               'url.searchParams.set("connect_address",target);',
               'url.searchParams.set("connect_no_dnsproxy","true");',
+              '"stun:"+window.location.hostname+":3478"',
+              '"stun:stun.cloudflare.com:3478"',
+              'missing TeaWeb WebRTC STUN patch target',
               'a.host=s.originalAddress.hostname,a.port=s.resolvedAddress.port',
               'missing TeaWeb DNS preserve-host patch target',
               'host.containers.internal:9987',
@@ -336,6 +345,73 @@ jobs:
               print("The TeaWeb image build contains obsolete runtime patch hooks:", file=sys.stderr)
               for snippet in present_forbidden:
                   print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Validate TeaSpeak WebRTC voice bridge hooks
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          build_script = Path("build-images.sh").read_text(encoding="utf-8")
+          configure = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
+          teaspeak_service = Path("imageroot/systemd/user/teaspeak.service").read_text(encoding="utf-8")
+          stun_service = Path("imageroot/systemd/user/teaspeak-stun.service").read_text(encoding="utf-8")
+          start_services = Path("imageroot/actions/configure-module/80start_services").read_text(encoding="utf-8")
+          update_restart = Path("imageroot/update-module.d/80restart_services").read_text(encoding="utf-8")
+
+          checks = {
+              "build-images.sh": [
+                  "docker.io/coturn/coturn:4.6.3",
+                  "${stunimage}",
+              ],
+              "imageroot/actions/configure-module/20configure": [
+                  '"3478/udp"',
+                  '"3478/tcp"',
+                  'range(50000, 50021)',
+                  'agent.set_env("NS8TEASPEAK_STUN_IMAGE", "docker.io/coturn/coturn:4.6.3")',
+                  '"    port_min: 50000"',
+                  '"    port_max: 50020"',
+              ],
+              "imageroot/systemd/user/teaspeak.service": [
+                  "--publish=50000-50020:50000-50020/udp",
+              ],
+              "imageroot/systemd/user/teaspeak-stun.service": [
+                  "--publish=3478:3478/udp",
+                  "--publish=3478:3478/tcp",
+                  "--stun-only",
+                  "--no-cli",
+                  "${NS8TEASPEAK_STUN_IMAGE}",
+              ],
+              "imageroot/actions/configure-module/80start_services": [
+                  "enable teaspeak-stun.service",
+                  "restart teaspeak-stun.service",
+                  "disable --now teaspeak-stun.service",
+              ],
+              "imageroot/update-module.d/80restart_services": [
+                  "restart teaspeak-stun.service",
+                  "stop teaspeak-stun.service",
+              ],
+          }
+          sources = {
+              "build-images.sh": build_script,
+              "imageroot/actions/configure-module/20configure": configure,
+              "imageroot/systemd/user/teaspeak.service": teaspeak_service,
+              "imageroot/systemd/user/teaspeak-stun.service": stun_service,
+              "imageroot/actions/configure-module/80start_services": start_services,
+              "imageroot/update-module.d/80restart_services": update_restart,
+          }
+          missing = []
+          for path, snippets in checks.items():
+              for snippet in snippets:
+                  if snippet not in sources[path]:
+                      missing.append(f"{path}: {snippet}")
+
+          if missing:
+              print("The TeaSpeak WebRTC voice bridge hooks are incomplete:", file=sys.stderr)
+              for item in missing:
+                  print(item, file=sys.stderr)
               sys.exit(1)
           PY
 
@@ -392,6 +468,7 @@ jobs:
               "systemctl --user daemon-reload",
               "teaspeak-certificate.service",
               "restart teaspeak.service",
+              "restart teaspeak-stun.service",
               "restart teaspeak-web.service",
           ]
           missing_update_restart = [snippet for snippet in required_update_restart if snippet not in update_restart]

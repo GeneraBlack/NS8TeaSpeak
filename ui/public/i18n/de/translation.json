@@ -62,6 +62,8 @@
         "compatibility_port": "TCP-Kompatibilitaetsport fuer Clients",
         "query_port": "ServerQuery",
         "file_port": "Dateiuebertragung",
+        "stun_port": "TeaWeb-STUN-Erkennung",
+        "webrtc_media_ports": "TeaWeb-WebRTC-Medien",
         "web_client_status": "TeaWeb-Client",
         "web_route_status": "TeaWeb-Route",
         "web_route_configured": "In Traefik konfiguriert",

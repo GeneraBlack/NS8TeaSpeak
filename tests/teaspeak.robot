@@ -38,6 +38,11 @@ TeaSpeak database should exist on persisted volume
     ...    return_rc=True
     Should Be Equal As Integers    ${rc}  0
 
+TeaSpeak WebRTC config should be active
+    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service sh -lc 'grep -q "port_min: 50000" /ts/config/config.yml && grep -q "port_max: 50020" /ts/config/config.yml && grep -q "stun.l.google.com" /ts/config/config.yml'
+    ...    return_rc=True
+    Should Be Equal As Integers    ${rc}  0
+
 TeaWeb route is reachable for host
     [Arguments]    ${host}
     ${output}  ${error}  ${rc} =    Execute Command    curl -s -S -L -k -H "Host: ${host}" https://127.0.0.1/
@@ -127,6 +132,15 @@ Check if teaspeak web service is active
     ...    return_rc=True
     Should Be Equal As Integers    ${rc}  0
     Should Contain    ${output}    active
+
+Check if TeaSpeak STUN service is active
+    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} systemctl --user is-active teaspeak-stun.service
+    ...    return_rc=True
+    Should Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    active
+
+Check if TeaSpeak WebRTC configuration is active
+    Wait Until Keyword Succeeds    20 times    3 seconds    TeaSpeak WebRTC config should be active
 
 Check if TeaWeb Traefik route is reachable with configured host header
     Wait Until Keyword Succeeds    20 times    3 seconds    TeaWeb route is reachable for host    ${TEST_WEB_HOST}

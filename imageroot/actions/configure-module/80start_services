@@ -15,8 +15,11 @@ systemctl --user enable teaspeak.service
 systemctl --user restart teaspeak.service
 
 if [ "${WEB_ENABLED:-1}" = "1" ]; then
+	systemctl --user enable teaspeak-stun.service
+	systemctl --user restart teaspeak-stun.service
 	systemctl --user enable teaspeak-web.service
 	systemctl --user restart teaspeak-web.service
 else
+	systemctl --user disable --now teaspeak-stun.service || true
 	systemctl --user disable --now teaspeak-web.service || true
 fi

@@ -34,7 +34,15 @@ vpn_check_enabled = 1 if parse_bool(request.get("vpn_check_enabled"), False) els
 
 agent.assert_exp(query_ssl_mode in (0, 1, 2), "query_ssl_mode must be 0, 1 or 2")
 
-public_ports = ["9987/udp", "9987/tcp", "10101/tcp", "30303/tcp"]
+public_ports = [
+    "9987/udp",
+    "9987/tcp",
+    "10101/tcp",
+    "30303/tcp",
+]
+if web_enabled:
+    public_ports.extend(["3478/udp", "3478/tcp"])
+    public_ports.extend(f"{port}/udp" for port in range(50000, 50021))
 
 agent.set_env("TIMEZONE", timezone)
 agent.set_env("LICENSE_KEY", license_key)
@@ -43,6 +51,7 @@ agent.set_env("WEB_ENABLED", str(web_enabled))
 agent.set_env("TRAEFIK_HOST", web_host if web_enabled else "")
 agent.set_env("TRAEFIK_HTTP2HTTPS", True)
 agent.set_env("TRAEFIK_LETS_ENCRYPT", web_lets_encrypt if web_enabled and web_host else False)
+agent.set_env("NS8TEASPEAK_STUN_IMAGE", "docker.io/coturn/coturn:4.6.3")
 agent.set_env("MUSIC_ENABLED", str(music_enabled))
 agent.set_env("VPN_CHECK_ENABLED", str(vpn_check_enabled))
 
@@ -79,6 +88,14 @@ config_lines = [
     "  ssl:",
     '    certificate: "/ts/certs/default_certificate.pem"',
     '    privatekey: "/ts/certs/default_privatekey.pem"',
+    "  webrtc:",
+    "    port_min: 50000",
+    "    port_max: 50020",
+    "    stun:",
+    '      host: "stun.l.google.com"',
+    "      port: 19302",
+    "    udp: 1",
+    "    tcp: 1",
     "music:",
     f"  enabled: {music_enabled}",
     "vpn:",

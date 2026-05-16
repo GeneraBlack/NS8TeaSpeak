@@ -77,6 +77,15 @@ if cert_url_upstream_snippet not in connection_bundle_js:
     raise SystemExit("missing TeaWeb certificate callback URL sanity target")
 
 connection_bundle_path.write_text(connection_bundle_js, encoding="utf-8")
+
+rtc_bundle_path = Path("/var/www/TeaWeb/js/4ee936d23a729f4634b2.js")
+rtc_bundle_js = rtc_bundle_path.read_text(encoding="utf-8")
+rtc_stun_old_snippet = 'iceServers:[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}]'
+rtc_stun_new_snippet = 'iceServers:[{urls:["stun:"+window.location.hostname+":3478","stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302","stun:stun.cloudflare.com:3478"]}]'
+if rtc_stun_old_snippet not in rtc_bundle_js:
+    raise SystemExit("missing TeaWeb WebRTC STUN patch target")
+rtc_bundle_js = rtc_bundle_js.replace(rtc_stun_old_snippet, rtc_stun_new_snippet, 1)
+rtc_bundle_path.write_text(rtc_bundle_js, encoding="utf-8")
 PY
 
 RUN rm /var/www/TeaWeb/TeaWeb-release.zip

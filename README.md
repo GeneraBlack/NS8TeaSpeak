@@ -9,7 +9,8 @@ This repository packages a rootless TeaSpeak deployment for NS8 with these MVP d
 - self-built service image from the official upstream tarball
 - self-built TeaWeb image from the official upstream web release
 - SQLite as the default backend
-- fixed public ports 9987/udp, 9987/tcp, 10101/tcp and 30303/tcp
+- fixed TeaSpeak public ports 9987/udp, 9987/tcp, 10101/tcp and 30303/tcp
+- TeaWeb WebRTC ports 3478/udp+tcp and 50000-50020/udp when the web client is enabled
 - TeaWeb is published through Traefik with a hostname-based route
 - one instance per node
 
@@ -50,7 +51,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.24`.
+The repository currently advertises GUI release `0.1.25`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -68,7 +69,7 @@ The action will:
 - generate `config.yml` for TeaSpeak
 - open the required public firewall ports
 - enable and start `teaspeak.service`
-- optionally enable and start `teaspeak-web.service` when `web_enabled` is true
+- optionally enable and start `teaspeak-stun.service` and `teaspeak-web.service` when `web_enabled` is true
 - create, update or remove the TeaWeb Traefik route based on `web_host`
 
 ## Public ports
@@ -77,6 +78,8 @@ The action will:
 - 9987/tcp: client compatibility path exposed by the upstream container
 - 10101/tcp: ServerQuery
 - 30303/tcp: file transfer
+- 3478/udp and 3478/tcp: STUN helper for browser WebRTC candidate discovery
+- 50000-50020/udp: TeaSpeak WebRTC voice bridge ports for TeaWeb/TeaClient media
 
 ## Web and music support
 
@@ -89,6 +92,8 @@ The TeaWeb landing page now auto-adds `connect_default=1`, `connect_address=<req
 It also normalizes older NS8 self-connect URLs like `?connect_default=1&connect_address=<requested host>` so cached browser URLs do not keep using direct `9987` WebSocket TLS.
 In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt through the public Traefik HTTPS route instead of asking the browser to connect directly to TeaSpeak's `9987` WebSocket endpoint.
 The TeaWeb sidecar proxies WebSocket upgrade requests from Traefik to TeaSpeak's internal `9987` listener, so the browser only validates the normal `web_host` certificate on port `443`.
+For voice in the browser, the module starts a STUN-only coturn sidecar on `3478` and patches TeaWeb to try `stun:<web_host>:3478` before the upstream public STUN servers.
+TeaSpeak's WebRTC voice bridge is pinned to UDP ports `50000-50020`, and the module publishes and opens that range so media candidates are reachable from browsers.
 
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.

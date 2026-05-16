@@ -32,6 +32,7 @@ ExecStart=/usr/bin/podman run \
     --publish=9987:9987/tcp \
     --publish=10101:10101/tcp \
     --publish=30303:30303/tcp \
+    --publish=50000-50020:50000-50020/udp \
     --volume=database:/ts/database \
     --volume=files:/ts/files \
     --volume=logs:/ts/logs \

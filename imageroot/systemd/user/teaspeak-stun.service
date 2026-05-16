@@ -1,0 +1,39 @@
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+[Unit]
+Description=TeaSpeak WebRTC STUN helper
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+EnvironmentFile=%S/state/environment
+WorkingDirectory=%S/state
+Restart=always
+ExecStartPre=/bin/rm -f %t/teaspeak-stun.pid %t/teaspeak-stun.ctr-id
+ExecStart=/usr/bin/podman run \
+    --detach \
+    --conmon-pidfile=%t/teaspeak-stun.pid \
+    --cidfile=%t/teaspeak-stun.ctr-id \
+    --cgroups=no-conmon \
+    --replace --name=%N \
+    --publish=3478:3478/udp \
+    --publish=3478:3478/tcp \
+    ${NS8TEASPEAK_STUN_IMAGE} \
+    -n \
+    --stun-only \
+    --no-cli \
+    --no-tls \
+    --no-dtls \
+    --listening-port=3478 \
+    --listening-ip=0.0.0.0 \
+    --fingerprint \
+    --log-file=stdout
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/teaspeak-stun.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/teaspeak-stun.ctr-id
+PIDFile=%t/teaspeak-stun.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

@@ -14,6 +14,7 @@ from pathlib import Path
 DEFAULT_REPOSITORY_DIR = Path("repository")
 DEFAULT_VERSION_FILE = Path("VERSION")
 DEFAULT_BOOTSTRAP_SOURCE_TAG = "latest"
+EXTERNAL_DEPENDENCY_IMAGES = ("docker.io/coturn/coturn:4.6.3",)
 
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -135,7 +136,7 @@ def fetch_labels(image_path: str, tag: str) -> dict:
     return blob.get("config", {}).get("Labels", {}) or {}
 
 
-def rewrite_embedded_image_tags(labels: dict, target_tag: str) -> dict:
+def rewrite_embedded_image_tags(labels: dict, target_tag: str, source_image: str) -> dict:
     rewritten = copy.deepcopy(labels)
     images = rewritten.get("org.nethserver.images")
     if not images:
@@ -147,7 +148,15 @@ def rewrite_embedded_image_tags(labels: dict, target_tag: str) -> dict:
             image_refs.append(image_ref)
             continue
         image_name, _tag = image_ref.rsplit(":", 1)
-        image_refs.append(f"{image_name}:{target_tag}")
+        if image_name == source_image or image_name.startswith(f"{source_image}-"):
+            image_refs.append(f"{image_name}:{target_tag}")
+        else:
+            image_refs.append(image_ref)
+
+    for image_ref in EXTERNAL_DEPENDENCY_IMAGES:
+        if image_ref not in image_refs:
+            image_refs.append(image_ref)
+
     rewritten["org.nethserver.images"] = " ".join(image_refs)
     return rewritten
 
@@ -173,7 +182,7 @@ def collect_versions(metadata: dict, bootstrap_version: str, bootstrap_source_ta
 
     if bootstrap_version and bootstrap_version not in {version["tag"] for version in versions}:
         bootstrap_labels = rewrite_embedded_image_tags(
-            fetch_labels(image_path, bootstrap_source_tag), bootstrap_version
+            fetch_labels(image_path, bootstrap_source_tag), bootstrap_version, source
         )
         versions.insert(
             0,

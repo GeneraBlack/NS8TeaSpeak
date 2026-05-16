@@ -20,7 +20,7 @@ ExecStart=/usr/bin/podman run \
     --replace --name=%N \
     --publish=3478:3478/udp \
     --publish=3478:3478/tcp \
-    ${NS8TEASPEAK_STUN_IMAGE} \
+    ${COTURN_IMAGE} \
     -n \
     --stun-only \
     --no-cli \

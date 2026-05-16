@@ -51,7 +51,7 @@ agent.set_env("WEB_ENABLED", str(web_enabled))
 agent.set_env("TRAEFIK_HOST", web_host if web_enabled else "")
 agent.set_env("TRAEFIK_HTTP2HTTPS", True)
 agent.set_env("TRAEFIK_LETS_ENCRYPT", web_lets_encrypt if web_enabled and web_host else False)
-agent.set_env("NS8TEASPEAK_STUN_IMAGE", "docker.io/coturn/coturn:4.6.3")
+agent.set_env("COTURN_IMAGE", "docker.io/coturn/coturn:4.6.3")
 agent.set_env("MUSIC_ENABLED", str(music_enabled))
 agent.set_env("VPN_CHECK_ENABLED", str(vpn_check_enabled))
 

@@ -51,7 +51,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.25`.
+The repository currently advertises GUI release `0.1.26`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -94,6 +94,7 @@ In practice this means opening `https://<web_host>/` immediately starts a TeaWeb
 The TeaWeb sidecar proxies WebSocket upgrade requests from Traefik to TeaSpeak's internal `9987` listener, so the browser only validates the normal `web_host` certificate on port `443`.
 For voice in the browser, the module starts a STUN-only coturn sidecar on `3478` and patches TeaWeb to try `stun:<web_host>:3478` before the upstream public STUN servers.
 TeaSpeak's WebRTC voice bridge is pinned to UDP ports `50000-50020`, and the module publishes and opens that range so media candidates are reachable from browsers.
+Because TeaWeb proxies browser WebSocket traffic into TeaSpeak, browser clients can initially appear to TeaSpeak from the same internal proxy address. The module forwards the real client headers where possible and raises the default TeaSpeak IP clone limit for the Normal and Guest server groups so multiple browser clients can join through the web route.
 
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.

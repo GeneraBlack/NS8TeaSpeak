@@ -124,7 +124,7 @@ jobs:
               "TCP_PORT",
               "NS8TEASPEAK_SERVICE_IMAGE",
               "NS8TEASPEAK_WEB_IMAGE",
-              "NS8TEASPEAK_STUN_IMAGE",
+              "COTURN_IMAGE",
           }
           invalid = {}
           pattern = re.compile(r"\$\{([A-Z0-9_]+)\}")
@@ -325,6 +325,10 @@ jobs:
               'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
               'missing TeaWeb certificate callback address sanity target',
               'missing TeaWeb certificate callback URL sanity target',
+              'proxy_set_header X-Real-IP $remote_addr;',
+              'proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+              'proxy_set_header X-Forwarded-Host $host;',
+              'proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;',
           ]
           forbidden = [
               'url.searchParams.has("ca")',
@@ -345,6 +349,42 @@ jobs:
               print("The TeaWeb image build contains obsolete runtime patch hooks:", file=sys.stderr)
               for snippet in present_forbidden:
                   print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Validate TeaWeb proxy clone guard
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          containerfile = Path("images/teaspeak-service/Containerfile").read_text(encoding="utf-8")
+          entrypoint = Path("images/teaspeak-service/teaspeak-entrypoint.py").read_text(encoding="utf-8")
+          required = {
+              "images/teaspeak-service/Containerfile": [
+                  "permission:i_client_max_clones_ip=100,-2,0,0",
+              ],
+              "images/teaspeak-service/teaspeak-entrypoint.py": [
+                  "WEB_PROXY_CLONE_IP_LIMIT = 100",
+                  'WEB_PROXY_CLONE_PERMISSION = "i_client_max_clones_ip"',
+                  "relax_web_proxy_clone_limit(state)",
+                  "groups.displayName in ('Normal', 'Guest')",
+              ],
+          }
+          sources = {
+              "images/teaspeak-service/Containerfile": containerfile,
+              "images/teaspeak-service/teaspeak-entrypoint.py": entrypoint,
+          }
+          missing = []
+          for path, snippets in required.items():
+              for snippet in snippets:
+                  if snippet not in sources[path]:
+                      missing.append(f"{path}: {snippet}")
+
+          if missing:
+              print("TeaWeb proxy clone guard is incomplete:", file=sys.stderr)
+              for item in missing:
+                  print(item, file=sys.stderr)
               sys.exit(1)
           PY
 
@@ -370,7 +410,7 @@ jobs:
                   '"3478/udp"',
                   '"3478/tcp"',
                   'range(50000, 50021)',
-                  'agent.set_env("NS8TEASPEAK_STUN_IMAGE", "docker.io/coturn/coturn:4.6.3")',
+                  'agent.set_env("COTURN_IMAGE", "docker.io/coturn/coturn:4.6.3")',
                   '"    port_min: 50000"',
                   '"    port_max: 50020"',
               ],
@@ -382,7 +422,7 @@ jobs:
                   "--publish=3478:3478/tcp",
                   "--stun-only",
                   "--no-cli",
-                  "${NS8TEASPEAK_STUN_IMAGE}",
+                  "${COTURN_IMAGE}",
               ],
               "imageroot/actions/configure-module/80start_services": [
                   "enable teaspeak-stun.service",

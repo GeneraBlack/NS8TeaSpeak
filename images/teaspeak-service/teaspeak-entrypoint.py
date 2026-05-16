@@ -49,6 +49,8 @@ YOUTUBE_WRAPPER = '#!/bin/sh\nexec /usr/local/bin/yt-dlp "$@"\n'
 FFMPEG_CONFIG = "[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n"
 YOUTUBE_CONFIG = "[general]\nyoutubedl_command=/ts/providers/bin/youtube-dl\n"
 CERTIFICATE_TIME_FORMAT = "%b %d %H:%M:%S %Y %Z"
+WEB_PROXY_CLONE_IP_LIMIT = 100
+WEB_PROXY_CLONE_PERMISSION = "i_client_max_clones_ip"
 
 
 def utc_now():
@@ -71,6 +73,8 @@ def load_state():
         "tls_certificate_synced_at": "",
         "database_migrated_at": "",
         "database_migration_source": "",
+        "web_proxy_clone_ip_limit": WEB_PROXY_CLONE_IP_LIMIT,
+        "web_proxy_clone_permissions_updated_at": "",
     }
 
     if RUNTIME_STATE_FILE.exists():
@@ -429,6 +433,87 @@ def clear_web_certificate_database():
     return result.returncode in (0, 3), result.stdout.strip()
 
 
+def relax_web_proxy_clone_limit(state):
+    if not PERSISTENT_DATABASE_FILE.exists():
+        return False
+
+    code = textwrap.dedent(
+        '''
+        import sqlite3
+        import sys
+        from pathlib import Path
+
+        db_path = Path(sys.argv[1])
+        permission = sys.argv[2]
+        limit = int(sys.argv[3])
+
+        conn = sqlite3.connect(str(db_path))
+        try:
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "select name from sqlite_master where type='table'"
+                )
+            }
+            if not {"groups", "permissions"}.issubset(tables):
+                print("groups or permissions table does not exist")
+                sys.exit(3)
+
+            cursor = conn.execute(
+                """
+                update permissions
+                   set value = ?
+                 where permId = ?
+                   and type = 0
+                   and value < ?
+                   and exists (
+                       select 1
+                         from groups
+                        where groups.serverId = permissions.serverId
+                          and groups.groupId = permissions.id
+                          and groups.target = 0
+                          and groups.displayName in ('Normal', 'Guest')
+                   )
+                """,
+                (limit, permission, limit),
+            )
+            conn.commit()
+            updated = cursor.rowcount if cursor.rowcount != -1 else conn.total_changes
+            if updated:
+                print(f"web proxy clone permission updated for {updated} rows")
+                sys.exit(2)
+
+            print("web proxy clone permission already current")
+        finally:
+            conn.close()
+        '''
+    )
+    result = run_python_without_teaspeak_libs(
+        code,
+        PERSISTENT_DATABASE_FILE,
+        WEB_PROXY_CLONE_PERMISSION,
+        WEB_PROXY_CLONE_IP_LIMIT,
+    )
+
+    if result.stdout:
+        print(result.stdout.rstrip(), flush=True)
+
+    state["web_proxy_clone_ip_limit"] = WEB_PROXY_CLONE_IP_LIMIT
+    if result.returncode == 2:
+        state["web_proxy_clone_permissions_updated_at"] = utc_now()
+        state["updated_at"] = utc_now()
+        return True
+
+    if result.returncode not in (0, 3):
+        print(
+            "[ns8teaspeak] Web proxy clone permission update failed: "
+            f"{result.stdout.strip()}",
+            flush=True,
+        )
+
+    return False
+
+
 def ensure_symlink(path, target):
     try:
         if path.is_symlink() and os.readlink(path) == target:
@@ -757,6 +842,7 @@ def main():
     state_changed = False
     state_changed = ensure_persistent_database(state) or state_changed
     state_changed = ensure_legacy_database_link() or state_changed
+    state_changed = relax_web_proxy_clone_limit(state) or state_changed
     state_changed = sync_staged_certificates(state) or state_changed
     if state_changed:
         save_state(state)

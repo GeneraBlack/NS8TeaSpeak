@@ -17,6 +17,10 @@ RUN apt-get update \
     && wget -nv -O /tmp/TeaSpeak.tar.gz "https://repo.teaspeak.de/server/linux/amd64_stable/TeaSpeak-${TEASPEAK_VERSION}.tar.gz" \
     && tar -xzf /tmp/TeaSpeak.tar.gz -C /ts \
     && rm /tmp/TeaSpeak.tar.gz \
+    && sed -i \
+        -e 's/permission:i_client_max_clones_ip=2,-2,0,0/permission:i_client_max_clones_ip=100,-2,0,0/g' \
+        -e 's/permission:i_client_max_clones_ip=0,-2,0,0/permission:i_client_max_clones_ip=100,-2,0,0/g' \
+        /ts/resources/permissions.template \
     && wget -nv -O /usr/local/bin/yt-dlp "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" \
     && chmod 0755 /usr/local/bin/yt-dlp \
     && /usr/local/bin/yt-dlp --version \

@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.21`.
+The repository currently advertises GUI release `0.1.22`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -85,19 +85,17 @@ When `web_enabled` is true, the module starts a bundled TeaWeb sidecar on an int
 Set `web_host` to publish TeaWeb through Traefik. If `web_lets_encrypt` is true, the module asks Traefik to obtain a Let's Encrypt certificate for that hostname.
 If `web_host` is left empty, TeaWeb remains enabled internally but no public Traefik route is created.
 
-The TeaWeb landing page now auto-adds `connect_default=1`, `connect_address=<requested host>` and `connect_no_dnsproxy=true` when the public URL is opened without query parameters.
-In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt against the same hostname on TeaSpeak's default client port `9987`.
+The TeaWeb landing page now auto-adds `connect_default=1` and `connect_address=<requested host>` when the public URL is opened without query parameters.
+In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt against TeaSpeak's default client port `9987` while keeping TeaWeb's upstream DNS proxy/con-gate fallback enabled for browser-trusted WebSocket transport.
 
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.
 
 The module mirrors the active Traefik certificate for `web_host` into TeaSpeak's own TLS files during service start and on `certificate-changed` events.
-Before TeaSpeak starts, the service entrypoint validates that the staged certificate still matches the current `web_host` and is inside its validity window; stale certificates from previous hosts are removed instead of being served on port `9987`.
-For existing installations it also refreshes TeaSpeak's persisted web certificate database entries (`webcert-cert`, `webcert-key`, `webcert-revision`) so an older stored web certificate cannot override the current Traefik certificate.
-If no valid certificate for the configured `web_host` is available, TeaSpeak is stopped instead of continuing with an old built-in or persisted web certificate.
-Module updates restart TeaSpeak after refreshing the staged Traefik certificate so old containers cannot keep serving a previous web certificate after the new module image is installed.
-In practice TeaWeb and TeaSpeak now present the same certificate chain for the shared hostname, so the browser-side one-time certificate acceptance flow should no longer be required once Traefik has a trusted certificate for that host.
-The TeaWeb image also patches the upstream browser client so DNS resolution does not replace the configured hostname with its IP address before opening the TLS WebSocket. This keeps browser certificate validation aligned with the `web_host` certificate and prevents the certificate fallback link from redirecting back to an IP-based `connect_address`.
+Before TeaSpeak starts, the service entrypoint validates that the staged certificate still matches the current `web_host` and is inside its validity window; stale certificates from previous hosts are removed before the server boots.
+For existing installations it also refreshes TeaSpeak's persisted web certificate database entries (`webcert-cert`, `webcert-key`, `webcert-revision`) so an older stored web certificate cannot linger in the database.
+TeaSpeak 1.5.6 still manages the browser-facing WebSocket certificate on `9987` internally, so the TeaWeb image keeps the upstream DNS proxy/con-gate connection path enabled instead of forcing a direct browser TLS connection to the TeaSpeak port.
+Module updates restart TeaSpeak after refreshing the staged Traefik certificate so old containers cannot keep running after the new module image is installed.
 
 When `music_enabled` is true, the module enables TeaSpeak's built-in music bot system in the server configuration.
 The service image now also ships the upstream runtime prerequisites for the built-in music providers: `ffmpeg`, `python3`, a `python` compatibility symlink and a `youtube-dl` compatibility command backed by a freshly downloaded upstream `yt-dlp` binary.
@@ -105,7 +103,7 @@ It also pre-creates the TeaSpeak provider config files, mirrors the packaged too
 There is no separate TeaMusic runtime image integrated yet because the upstream TeaMusic repository does not currently provide a stable, documented release artifact for direct deployment.
 
 TeaSpeak now also stores its SQLite database on the persisted `/ts/database` volume via `sqlite:///ts/database/TeaData.sqlite`.
-The service entrypoint also passes TeaSpeak explicit `-Pgeneral.database.url=...` and TLS file overrides, and keeps `/ts/TeaData.sqlite` as a compatibility symlink to the persisted database file so older/default TeaSpeak paths cannot fall back to ephemeral container storage.
+The service entrypoint also passes TeaSpeak explicit `-Pgeneral.database.url=...` and keeps `/ts/TeaData.sqlite` as a compatibility symlink to the persisted database file so older/default TeaSpeak paths cannot fall back to ephemeral container storage.
 During module updates the updater stages any legacy in-container `TeaData.sqlite` file into module state, and the next container start imports it into the persisted database volume before the server boots.
 
 ## Initial credentials

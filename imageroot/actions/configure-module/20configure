@@ -54,6 +54,7 @@ runtime_dir.mkdir(parents=True, exist_ok=True)
 config_file = config_dir / "config.yml"
 
 config_lines = [
+    "version: 16",
     "general:",
     f"  license: {json.dumps(license_key)}",
     "  database:",

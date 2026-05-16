@@ -27,7 +27,6 @@ auto_connect_script = (
     'url.searchParams.has("connect_address"))return;'
     'url.searchParams.set("connect_default","1");'
     'url.searchParams.set("connect_address",window.location.hostname);'
-    'url.searchParams.set("connect_no_dnsproxy","true");'
     'window.location.replace(url.toString());'
     '})();</script>'
 )
@@ -50,12 +49,6 @@ format_bundle_path.write_text(format_bundle_js, encoding="utf-8")
 
 connection_bundle_path = Path("/var/www/TeaWeb/js/14640fc9f0bf331a50cf.js")
 connection_bundle_js = connection_bundle_path.read_text(encoding="utf-8")
-dns_old_snippet = 'a.host=s.resolvedAddress.hostname,a.port=s.resolvedAddress.port,"number"!=typeof a.port&&(a.port=i.port),this.log.log("connection.hostname.resolved",{address:{server_port:a.port,server_hostname:a.host}})'
-dns_new_snippet = 'a.port=s.resolvedAddress.port,"number"!=typeof a.port&&(a.port=i.port),this.log.log("connection.hostname.resolved",{address:{server_port:a.port,server_hostname:a.host,resolved_server_hostname:s.resolvedAddress.hostname}})'
-if dns_old_snippet not in connection_bundle_js:
-    raise SystemExit("missing TeaWeb DNS preserve-host patch target")
-connection_bundle_js = connection_bundle_js.replace(dns_old_snippet, dns_new_snippet, 1)
-
 cert_address_old_snippet = 'connect_address:this.serverConnection.remote_address().host+(9987!==this.serverConnection.remote_address().port?":"+this.serverConnection.remote_address().port:"")'
 cert_address_new_snippet = 'connect_address:(new URLSearchParams(document.location.search).get("connect_address")||this.serverConnection.remote_address().host)+(9987!==this.serverConnection.remote_address().port?":"+this.serverConnection.remote_address().port:"")'
 if cert_address_old_snippet not in connection_bundle_js:

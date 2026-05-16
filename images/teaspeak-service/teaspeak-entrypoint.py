@@ -770,11 +770,6 @@ def main():
         [
             "./TeaSpeakServer",
             "-Pgeneral.database.url=sqlite:///ts/database/TeaData.sqlite",
-            "-Pquery.ssl.certificate=/ts/certs/query_certificate.pem",
-            "-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem",
-            "-Pweb.ssl.certificate=/ts/certs/default_certificate.pem",
-            "-Pweb.ssl.certificate.default=/ts/certs/default_certificate.pem",
-            "-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem",
         ],
         cwd=str(TEASPEAK_ROOT),
         env=process_env,

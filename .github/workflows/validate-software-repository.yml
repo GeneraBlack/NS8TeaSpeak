@@ -195,6 +195,7 @@ jobs:
           config_action = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
           entrypoint = Path("images/teaspeak-service/teaspeak-entrypoint.py").read_text(encoding="utf-8")
           required = [
+              'version: 16',
               'database:',
               'url: "sqlite:///ts/database/TeaData.sqlite"',
               'certificate: "/ts/certs/query_certificate.pem"',
@@ -205,14 +206,22 @@ jobs:
           missing = [snippet for snippet in required if snippet not in config_action]
           required_entrypoint = [
               '-Pgeneral.database.url=sqlite:///ts/database/TeaData.sqlite',
-              '-Pquery.ssl.certificate=/ts/certs/query_certificate.pem',
-              '-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem',
-              '-Pweb.ssl.certificate=/ts/certs/default_certificate.pem',
-              '-Pweb.ssl.certificate.default=/ts/certs/default_certificate.pem',
-              '-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem',
               'ensure_legacy_database_link()',
           ]
           missing.extend(snippet for snippet in required_entrypoint if snippet not in entrypoint)
+          forbidden_entrypoint = [
+              '-Pquery.ssl.certificate=',
+              '-Pquery.ssl.privatekey=',
+              '-Pweb.ssl.certificate=',
+              '-Pweb.ssl.certificate.default=',
+              '-Pweb.ssl.privatekey=',
+          ]
+          present_forbidden = [snippet for snippet in forbidden_entrypoint if snippet in entrypoint]
+          if present_forbidden:
+              print("TeaSpeak SSL certificate paths must be configured in config.yml, not with -P overrides.", file=sys.stderr)
+              for snippet in present_forbidden:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
           if missing:
               print("configure-module must persist the database and wire TeaSpeak TLS paths explicitly.", file=sys.stderr)
               for snippet in missing:
@@ -288,14 +297,14 @@ jobs:
           required = [
               "ns8TeaSpeakAutoConnect",
               'url.searchParams.set("connect_default","1");',
-              'url.searchParams.set("connect_no_dnsproxy","true");',
               'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
-              'missing TeaWeb DNS preserve-host patch target',
-              'resolved_server_hostname:s.resolvedAddress.hostname',
               'missing TeaWeb certificate callback address patch target',
               'missing TeaWeb certificate callback URL patch target',
           ]
-          forbidden = ['url.searchParams.has("ca")']
+          forbidden = [
+              'url.searchParams.has("ca")',
+              'url.searchParams.set("connect_no_dnsproxy","true");',
+          ]
           missing = [snippet for snippet in required if snippet not in containerfile]
 
           if missing:

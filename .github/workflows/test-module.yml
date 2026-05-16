@@ -18,8 +18,39 @@ permissions:
   statuses: write
 
 jobs:
+  preflight:
+    name: "Check DigitalOcean test prerequisites"
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.prerequisites.outputs.should_run }}
+    steps:
+      - id: prerequisites
+        env:
+          DO_TOKEN: ${{ secrets.do_token }}
+          RUN_DIGITALOCEAN_TESTS: ${{ vars.RUN_DIGITALOCEAN_TESTS }}
+        run: |
+          set -euo pipefail
+
+          should_run=false
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            should_run=true
+          elif [[ "${RUN_DIGITALOCEAN_TESTS,,}" == "true" && -n "${DO_TOKEN}" ]]; then
+            should_run=true
+          else
+            echo "::notice::Skipping DigitalOcean NS8 module tests. Set repository variable RUN_DIGITALOCEAN_TESTS=true and secret do_token to enable them on publish."
+          fi
+
+          if [[ "${should_run}" == "true" && -z "${DO_TOKEN}" ]]; then
+            echo "::error::The do_token secret is required to run DigitalOcean NS8 module tests."
+            exit 1
+          fi
+
+          echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
+
   run:
     name: "Run tests"
+    needs: preflight
+    if: ${{ needs.preflight.outputs.should_run == 'true' }}
     uses: NethServer/ns8-github-actions/.github/workflows/test-module.yml@v1
     with:
       ui_tests_strategy: on_renovate_ui_change

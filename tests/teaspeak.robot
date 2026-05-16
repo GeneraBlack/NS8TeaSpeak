@@ -33,6 +33,11 @@ Read TeaSpeak Runtime Info
     Should Be Equal As Integers    ${rc}  0
     [Return]    ${output}
 
+TeaSpeak database should exist on persisted volume
+    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service test -s /ts/database/TeaData.sqlite
+    ...    return_rc=True
+    Should Be Equal As Integers    ${rc}  0
+
 TeaWeb route is reachable for host
     [Arguments]    ${host}
     ${output}  ${error}  ${rc} =    Execute Command    curl -s -S -L -k -H "Host: ${host}" https://127.0.0.1/
@@ -94,6 +99,8 @@ Check if teaspeak runtime info is available
     ${output} =    Read TeaSpeak Runtime Info
     Should Contain    ${output}    "server_version"
     Should Contain    ${output}    "credentials_available"
+    Should Contain    ${output}    "tls_certificate_available"
+    Should Contain    ${output}    "tls_certificate_host"
     Should Contain    ${output}    "web_enabled"
     Should Contain    ${output}    "web_route_host"
     Should Contain    ${output}    "web_route_configured"
@@ -126,6 +133,13 @@ Check if TeaWeb Traefik route is reachable with configured host header
 
 Check if TeaWeb landing page injects the NS8 auto-connect bootstrap
     Wait Until Keyword Succeeds    20 times    3 seconds    TeaWeb landing page contains NS8 auto-connect bootstrap    ${TEST_WEB_HOST}
+
+Check if TeaSpeak database survives a service restart
+    Wait Until Keyword Succeeds    20 times    3 seconds    TeaSpeak database should exist on persisted volume
+    ${rc} =    Execute Command    runagent -m ${module_id} systemctl --user restart teaspeak.service
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
+    Wait Until Keyword Succeeds    20 times    3 seconds    TeaSpeak database should exist on persisted volume
 
 Check optional Let's Encrypt issuance for TeaWeb
     ${public_fqdn} =    Evaluate    os.getenv("TEASPEAK_PUBLIC_FQDN", "").strip().lower()    modules=os

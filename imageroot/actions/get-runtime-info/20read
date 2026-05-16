@@ -60,6 +60,11 @@ output = {
     "credentials_available": bool(runtime_state.get("credentials_available", False)),
     "credentials_captured_at": runtime_state.get("captured_at", ""),
     "credentials_source": runtime_state.get("source", ""),
+    "tls_certificate_available": bool(
+        runtime_state.get("tls_certificate_available", False)
+    ),
+    "tls_certificate_host": runtime_state.get("tls_certificate_host", ""),
+    "tls_certificate_synced_at": runtime_state.get("tls_certificate_synced_at", ""),
     "query_ssl_mode": parse_int("QUERY_SSL_MODE", 2),
     "web_enabled": parse_bool("WEB_ENABLED", True),
     "web_route_host": web_route_host,

@@ -1,0 +1,13 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+[Unit]
+Description=Fetch TeaSpeak TLS certificate from Traefik
+
+[Service]
+Type=oneshot
+EnvironmentFile=%S/state/environment
+WorkingDirectory=%S/state
+ExecStart=/bin/sh -ec 'mkdir -p runtime/tls; if [ -z "$TRAEFIK_HOST" ]; then rm -f runtime/tls/default_certificate.pem runtime/tls/default_privatekey.pem; exit 0; fi; exec runagent get-certificate --cert-file=runtime/tls/default_certificate.pem --key-file=runtime/tls/default_privatekey.pem "$TRAEFIK_HOST"'

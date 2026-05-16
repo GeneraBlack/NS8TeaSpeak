@@ -9,6 +9,8 @@
 #
 [Unit]
 Description=TeaSpeak server
+Wants=teaspeak-certificate.service
+After=teaspeak-certificate.service
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
@@ -17,6 +19,7 @@ WorkingDirectory=%S/state
 Restart=always
 ExecStartPre=/bin/mkdir -p %S/state/config
 ExecStartPre=/bin/mkdir -p %S/state/runtime
+ExecStartPre=/bin/mkdir -p %S/state/runtime/tls
 ExecStartPre=/bin/rm -f %t/teaspeak.pid %t/teaspeak.ctr-id
 ExecStart=/usr/bin/podman run \
     --detach \

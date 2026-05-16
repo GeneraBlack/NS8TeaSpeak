@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.5`.
+The repository currently advertises GUI release `0.1.13`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -91,13 +91,16 @@ In practice this means opening `https://<web_host>/` immediately starts a TeaWeb
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.
 
-Important: Traefik's Let's Encrypt certificate only covers the TeaWeb HTTPS route.
-If TeaSpeak itself still serves an untrusted certificate on port `9987`, browsers may require a one-time certificate acceptance before TeaWeb can connect successfully.
+The module now mirrors the active Traefik certificate for `web_host` into TeaSpeak's own TLS files during service start and on `certificate-changed` events.
+In practice TeaWeb and TeaSpeak now present the same certificate chain for the shared hostname, so the browser-side one-time certificate acceptance flow should no longer be required once Traefik has a trusted certificate for that host.
 
 When `music_enabled` is true, the module enables TeaSpeak's built-in music bot system in the server configuration.
-The service image now also ships the upstream runtime prerequisites for the built-in music providers: `ffmpeg`, `python3`, a `python` compatibility symlink and a `youtube-dl` compatibility command backed by `yt-dlp`.
+The service image now also ships the upstream runtime prerequisites for the built-in music providers: `ffmpeg`, `python3`, a `python` compatibility symlink and a `youtube-dl` compatibility command backed by a freshly downloaded upstream `yt-dlp` binary.
 It also pre-creates the TeaSpeak provider config files, mirrors the packaged tools into `/ts/providers/bin`, and the service entrypoint now reasserts those files plus a provider-first `PATH` at container startup so NS8 runtime differences cannot drop the music helper resolution back to a bare `youtube-dl` lookup.
 There is no separate TeaMusic runtime image integrated yet because the upstream TeaMusic repository does not currently provide a stable, documented release artifact for direct deployment.
+
+TeaSpeak now also stores its SQLite database on the persisted `/ts/database` volume via `sqlite://database/TeaData.sqlite`.
+During module updates the updater stages any legacy in-container `TeaData.sqlite` file into module state, and the next container start imports it into the persisted database volume before the server boots.
 
 ## Initial credentials
 
@@ -143,7 +146,7 @@ To publish a new GUI-installable stable release:
 1. Update `VERSION` if needed.
 2. Run `python scripts/build_repository_index.py`.
 3. Commit and push the repository changes.
-4. Create and push the matching Git tag, for example `0.1.5`.
+4. Create and push the matching Git tag, for example `0.1.13`.
 
 The existing `publish-images.yml` workflow will publish that semantic image tag automatically, and the GUI repository will then resolve to the stable image instead of the bootstrap fallback.
 
@@ -158,5 +161,7 @@ To remove the instance:
 This module uses the NS8 standard testing infrastructure. For instructions on how to run the test suite locally, refer to the [Running tests locally](https://github.com/NethServer/ns8-github-actions/blob/v1/README.md#running-tests-locally) section of the ns8-github-actions README.
 
 The default Robot suite now includes a node-local HTTPS smoke test for the TeaWeb Traefik route. It verifies that Traefik serves TeaWeb correctly when the configured hostname is sent as the `Host` header to `https://127.0.0.1/` on the NS8 node.
+
+The suite also verifies that TeaSpeak writes its SQLite database to `/ts/database/TeaData.sqlite` and that the file still exists after a service restart, protecting against full-state resets on restart.
 
 If you want to validate real Let's Encrypt issuance as well, export `TEASPEAK_PUBLIC_FQDN` before running the suite and point that public DNS name at the NS8 node. The optional Robot test will reconfigure TeaWeb with `web_lets_encrypt=true`, wait for the route to answer over Traefik and then verify that the served certificate issuer contains `Let's Encrypt`.

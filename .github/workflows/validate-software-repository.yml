@@ -6,7 +6,9 @@ on:
       - .gitattributes
       - .github/workflows/validate-software-repository.yml
       - imageroot/actions/**
+            - imageroot/events/**
       - imageroot/systemd/**
+            - imageroot/update-module.d/**
       - images/**
       - repository/**
       - scripts/build_repository_index.py
@@ -17,7 +19,9 @@ on:
       - .gitattributes
       - .github/workflows/validate-software-repository.yml
       - imageroot/actions/**
+            - imageroot/events/**
       - imageroot/systemd/**
+            - imageroot/update-module.d/**
       - images/**
       - repository/**
       - scripts/build_repository_index.py
@@ -44,14 +48,23 @@ jobs:
           from pathlib import Path
 
           missing = []
-          for path in sorted(Path("imageroot/actions").rglob("*")):
-              if not path.is_file() or not path.name[:2].isdigit():
+          roots = [
+              Path("imageroot/actions"),
+              Path("imageroot/events"),
+              Path("imageroot/update-module.d"),
+          ]
+
+          for root in roots:
+              if not root.exists():
                   continue
-              if not path.stat().st_mode & stat.S_IXUSR:
-                  missing.append(path.as_posix())
+              for path in sorted(root.rglob("*")):
+                  if not path.is_file() or not path.name[:2].isdigit():
+                      continue
+                  if not path.stat().st_mode & stat.S_IXUSR:
+                      missing.append(path.as_posix())
 
           if missing:
-              print("The following NS8 action entrypoints must be executable:", file=sys.stderr)
+              print("The following NS8 entrypoints must be executable:", file=sys.stderr)
               for path in missing:
                   print(path, file=sys.stderr)
               sys.exit(1)
@@ -65,26 +78,35 @@ jobs:
           from pathlib import Path
 
           missing = []
-          for path in sorted(Path("imageroot/actions").rglob("*")):
-              if not path.is_file() or path.suffix:
-                  continue
-              source = path.read_text(encoding="utf-8")
-              if "sys." not in source:
-                  continue
+          roots = [
+              Path("imageroot/actions"),
+              Path("imageroot/events"),
+              Path("imageroot/update-module.d"),
+          ]
 
-              tree = ast.parse(source, filename=str(path))
-              imports_sys = False
-              for node in ast.walk(tree):
-                  if isinstance(node, ast.Import):
-                      imports_sys = imports_sys or any(alias.name == "sys" for alias in node.names)
-                  elif isinstance(node, ast.ImportFrom) and node.module == "sys":
-                      imports_sys = True
+          for root in roots:
+              if not root.exists():
+                  continue
+              for path in sorted(root.rglob("*")):
+                  if not path.is_file() or path.suffix:
+                      continue
+                  source = path.read_text(encoding="utf-8")
+                  if "sys." not in source:
+                      continue
 
-              if not imports_sys:
-                  missing.append(path.as_posix())
+                  tree = ast.parse(source, filename=str(path))
+                  imports_sys = False
+                  for node in ast.walk(tree):
+                      if isinstance(node, ast.Import):
+                          imports_sys = imports_sys or any(alias.name == "sys" for alias in node.names)
+                      elif isinstance(node, ast.ImportFrom) and node.module == "sys":
+                          imports_sys = True
+
+                  if not imports_sys:
+                      missing.append(path.as_posix())
 
           if missing:
-              print("The following Python action scripts use sys without importing it:", file=sys.stderr)
+              print("The following Python entrypoints use sys without importing it:", file=sys.stderr)
               for path in missing:
                   print(path, file=sys.stderr)
               sys.exit(1)
@@ -151,6 +173,32 @@ jobs:
               sys.exit(1)
           PY
 
+            - name: Validate module authorizations include certificate access
+                run: |
+                    python - <<'PY'
+                    import sys
+                    from pathlib import Path
+
+                    script = Path("build-images.sh").read_text(encoding="utf-8")
+                    required = 'org.nethserver.authorizations=node:fwadm traefik@node:fulladm'
+                    if required not in script:
+                            print("build-images.sh must request traefik@node:fulladm for certificate sync.", file=sys.stderr)
+                            sys.exit(1)
+                    PY
+
+            - name: Validate TeaSpeak persistent database path
+                run: |
+                    python - <<'PY'
+                    import sys
+                    from pathlib import Path
+
+                    config_action = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
+                    required = 'sqlite://database/TeaData.sqlite'
+                    if required not in config_action:
+                            print("configure-module must point TeaSpeak at the persisted database volume.", file=sys.stderr)
+                            sys.exit(1)
+                    PY
+
       - name: Validate TeaSpeak music runtime hooks
         run: |
           python - <<'PY'
@@ -159,14 +207,14 @@ jobs:
 
           containerfile = Path("images/teaspeak-service/Containerfile").read_text(encoding="utf-8")
           required = [
-              "yt-dlp",
+              "yt-dlp/releases/latest/download/yt-dlp",
               "config_ffmpeg.ini",
               "config_youtube.ini",
               "ffmpeg_command=/ts/providers/bin/ffmpeg",
               "youtubedl_command=/ts/providers/bin/youtube-dl",
               "ln -sf /usr/bin/python3 /usr/bin/python",
               'ENTRYPOINT ["/usr/bin/python3", "/usr/local/bin/teaspeak-entrypoint.py"]',
-              "exec /usr/bin/python3 /usr/bin/yt-dlp \"$@\"",
+              "exec /usr/local/bin/yt-dlp \"$@\"",
           ]
           missing = [snippet for snippet in required if snippet not in containerfile]
 
@@ -188,7 +236,9 @@ jobs:
               'ensure_music_runtime()',
               'process_env["PATH"] = build_runtime_path()',
               '"/ts/providers/bin"',
-              'exec /usr/bin/python3 /usr/bin/yt-dlp "$@"',
+              'exec /usr/local/bin/yt-dlp "$@"',
+              'ensure_persistent_database(state)',
+              'sync_staged_certificates(state)',
           ]
           missing = [snippet for snippet in required if snippet not in entrypoint]
 
@@ -219,11 +269,66 @@ jobs:
               'url.searchParams.set("connect_default","1");',
               'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
           ]
+          forbidden = ['url.searchParams.has("ca")']
           missing = [snippet for snippet in required if snippet not in containerfile]
 
           if missing:
               print("The TeaWeb image build is missing required runtime patch hooks:", file=sys.stderr)
               for snippet in missing:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+
+          present_forbidden = [snippet for snippet in forbidden if snippet in containerfile]
+          if present_forbidden:
+              print("The TeaWeb auto-connect patch must not treat 'ca' as a certificate flag:", file=sys.stderr)
+              for snippet in present_forbidden:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Validate TeaSpeak certificate sync hooks
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          service_unit = Path("imageroot/systemd/user/teaspeak.service").read_text(encoding="utf-8")
+          certificate_unit = Path("imageroot/systemd/user/teaspeak-certificate.service").read_text(encoding="utf-8")
+          certificate_event = Path("imageroot/events/certificate-changed/50get_certificate").read_text(encoding="utf-8")
+
+          required_service = [
+              "Wants=teaspeak-certificate.service",
+              "After=teaspeak-certificate.service",
+              "%S/state/runtime/tls",
+          ]
+          missing_service = [snippet for snippet in required_service if snippet not in service_unit]
+          if missing_service:
+              print("teaspeak.service is missing certificate sync dependencies:", file=sys.stderr)
+              for snippet in missing_service:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+
+          required_unit = [
+              "runagent get-certificate",
+              "runtime/tls/default_certificate.pem",
+              "runtime/tls/default_privatekey.pem",
+          ]
+          missing_unit = [snippet for snippet in required_unit if snippet not in certificate_unit]
+          if missing_unit:
+              print("teaspeak-certificate.service is missing certificate fetch hooks:", file=sys.stderr)
+              for snippet in missing_unit:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+
+          required_event = [
+              "certificate_event_matches",
+              "teaspeak-certificate.service",
+              "teaspeak.service",
+          ]
+          missing_event = [snippet for snippet in required_event if snippet not in certificate_event]
+          if missing_event:
+              print("certificate-changed event hook is incomplete:", file=sys.stderr)
+              for snippet in missing_event:
                   print(snippet, file=sys.stderr)
               sys.exit(1)
           PY

@@ -24,7 +24,7 @@ auto_connect_script = (
     '<script>/* ns8TeaSpeakAutoConnect */(function(){'
     'var url=new URL(window.location.href);'
     'if(url.search.length!==0||url.searchParams.has("connect_default")||'
-    'url.searchParams.has("connect_address")||url.searchParams.has("ca"))return;'
+    'url.searchParams.has("connect_address"))return;'
     'url.searchParams.set("connect_default","1");'
     'url.searchParams.set("connect_address",window.location.hostname);'
     'window.location.replace(url.toString());'

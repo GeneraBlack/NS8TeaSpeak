@@ -12,12 +12,14 @@ RUN apt-get update \
         python3 \
         tzdata \
         wget \
-        yt-dlp \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /ts /ts/logs /ts/certs /ts/files /ts/database /ts/config /ts/crash_dumps \
     && wget -nv -O /tmp/TeaSpeak.tar.gz "https://repo.teaspeak.de/server/linux/amd64_stable/TeaSpeak-${TEASPEAK_VERSION}.tar.gz" \
     && tar -xzf /tmp/TeaSpeak.tar.gz -C /ts \
     && rm /tmp/TeaSpeak.tar.gz \
+    && wget -nv -O /usr/local/bin/yt-dlp "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" \
+    && chmod 0755 /usr/local/bin/yt-dlp \
+    && /usr/local/bin/yt-dlp --version \
     && mkdir -p /ts/providers /ts/providers/bin \
     && printf '' > /ts/config/config.yml \
     && printf '[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n' > /ts/providers/config_ffmpeg.ini \
@@ -25,7 +27,8 @@ RUN apt-get update \
     && ln -sf /usr/bin/ffmpeg /ts/providers/bin/ffmpeg \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/python3 /usr/local/bin/python \
-    && printf '%s\n' '#!/bin/sh' 'exec /usr/bin/python3 /usr/bin/yt-dlp "$@"' > /usr/local/bin/youtube-dl \
+    && ln -sf /usr/local/bin/yt-dlp /usr/bin/yt-dlp \
+    && printf '%s\n' '#!/bin/sh' 'exec /usr/local/bin/yt-dlp "$@"' > /usr/local/bin/youtube-dl \
     && chmod 0755 /usr/local/bin/youtube-dl \
     && cp /usr/local/bin/youtube-dl /usr/bin/youtube-dl \
     && cp /usr/local/bin/youtube-dl /ts/providers/bin/youtube-dl \

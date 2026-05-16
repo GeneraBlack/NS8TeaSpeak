@@ -55,7 +55,7 @@ buildah add "${container}" ui/dist /ui
 
 # Setup the entrypoint, grant firewall management, declare the service image and set a rootless container
 buildah config --entrypoint=/ \
-    --label="org.nethserver.authorizations=node:fwadm traefik@node:routeadm" \
+    --label="org.nethserver.authorizations=node:fwadm traefik@node:fulladm" \
     --label="org.nethserver.rootfull=0" \
     --label="org.nethserver.max-per-node=1" \
     --label="org.nethserver.tcp-ports-demand=1" \

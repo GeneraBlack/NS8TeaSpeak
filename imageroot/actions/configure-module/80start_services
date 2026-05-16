@@ -10,6 +10,7 @@
 set -e
 
 systemctl --user daemon-reload
+systemctl --user start teaspeak-certificate.service || true
 systemctl --user enable teaspeak.service
 systemctl --user restart teaspeak.service
 

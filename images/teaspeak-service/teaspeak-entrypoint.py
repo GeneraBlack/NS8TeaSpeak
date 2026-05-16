@@ -11,15 +11,33 @@ from datetime import datetime, timezone
 
 
 STATE_DIR = Path(os.environ.get("TEASPEAK_STATE_DIR", "/ts/module_state"))
+TEASPEAK_ROOT = Path("/ts")
+DATABASE_FILENAME = "TeaData.sqlite"
+DATABASE_DIR = TEASPEAK_ROOT / "database"
+PERSISTENT_DATABASE_FILE = DATABASE_DIR / DATABASE_FILENAME
+LEGACY_CONTAINER_DATABASE_FILE = TEASPEAK_ROOT / DATABASE_FILENAME
+LEGACY_DATABASE_STAGE_DIR = STATE_DIR / "legacy-database"
+LEGACY_STAGED_DATABASE_FILE = LEGACY_DATABASE_STAGE_DIR / DATABASE_FILENAME
+DATABASE_FILE_SUFFIXES = ("", "-wal", "-shm", "-journal")
+CERTS_DIR = TEASPEAK_ROOT / "certs"
+STAGED_TLS_DIR = STATE_DIR / "tls"
+STAGED_CERTIFICATE_FILE = STAGED_TLS_DIR / "default_certificate.pem"
+STAGED_PRIVATEKEY_FILE = STAGED_TLS_DIR / "default_privatekey.pem"
+TLS_SYNC_TARGETS = (
+    (STAGED_CERTIFICATE_FILE, CERTS_DIR / "default_certificate.pem", 0o644),
+    (STAGED_PRIVATEKEY_FILE, CERTS_DIR / "default_privatekey.pem", 0o600),
+    (STAGED_CERTIFICATE_FILE, CERTS_DIR / "query_certificate.pem", 0o644),
+    (STAGED_PRIVATEKEY_FILE, CERTS_DIR / "query_privatekey.pem", 0o600),
+)
 RUNTIME_STATE_FILE = STATE_DIR / "runtime-info.json"
 CAPTURED_LINES_FILE = STATE_DIR / "bootstrap-lines.log"
-PROVIDERS_DIR = Path("/ts/providers")
+PROVIDERS_DIR = TEASPEAK_ROOT / "providers"
 PROVIDERS_BIN_DIR = PROVIDERS_DIR / "bin"
 FFMPEG_CONFIG_FILE = PROVIDERS_DIR / "config_ffmpeg.ini"
 YOUTUBE_CONFIG_FILE = PROVIDERS_DIR / "config_youtube.ini"
 FFMPEG_WRAPPER_PATH = PROVIDERS_BIN_DIR / "ffmpeg"
 YOUTUBE_WRAPPER_PATH = PROVIDERS_BIN_DIR / "youtube-dl"
-YOUTUBE_WRAPPER = '#!/bin/sh\nexec /usr/bin/python3 /usr/bin/yt-dlp "$@"\n'
+YOUTUBE_WRAPPER = '#!/bin/sh\nexec /usr/local/bin/yt-dlp "$@"\n'
 FFMPEG_CONFIG = "[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n"
 YOUTUBE_CONFIG = "[general]\nyoutubedl_command=/ts/providers/bin/youtube-dl\n"
 
@@ -39,6 +57,11 @@ def load_state():
         "captured_at": "",
         "updated_at": utc_now(),
         "source": "startup-log",
+        "tls_certificate_available": False,
+        "tls_certificate_host": "",
+        "tls_certificate_synced_at": "",
+        "database_migrated_at": "",
+        "database_migration_source": "",
     }
 
     if RUNTIME_STATE_FILE.exists():
@@ -93,6 +116,45 @@ def ensure_text_file(path, content, mode=None):
             pass
 
 
+def write_bytes_file(path, content, mode=None):
+    current = None
+
+    try:
+        if path.exists() or path.is_symlink():
+            current = path.read_bytes()
+    except OSError:
+        current = None
+
+    if current != content:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = Path(str(path) + ".tmp")
+        temp_path.write_bytes(content)
+        os.replace(temp_path, path)
+
+    if mode is not None:
+        try:
+            path.chmod(mode)
+        except OSError:
+            pass
+
+
+def sync_file(source, destination, mode=None, delete_source=False):
+    try:
+        content = source.read_bytes()
+    except OSError:
+        return False
+
+    write_bytes_file(destination, content, mode=mode)
+
+    if delete_source:
+        try:
+            source.unlink()
+        except OSError:
+            pass
+
+    return True
+
+
 def ensure_symlink(path, target):
     try:
         if path.is_symlink() and os.readlink(path) == target:
@@ -110,6 +172,92 @@ def ensure_music_runtime():
     ensure_text_file(YOUTUBE_WRAPPER_PATH, YOUTUBE_WRAPPER, mode=0o755)
     ensure_text_file(FFMPEG_CONFIG_FILE, FFMPEG_CONFIG)
     ensure_text_file(YOUTUBE_CONFIG_FILE, YOUTUBE_CONFIG)
+
+
+def migrate_database_from(source_base):
+    migrated = False
+
+    for suffix in DATABASE_FILE_SUFFIXES:
+        source = Path(str(source_base) + suffix)
+        if not source.exists():
+            continue
+
+        destination = Path(str(PERSISTENT_DATABASE_FILE) + suffix)
+        migrated = sync_file(source, destination, delete_source=True) or migrated
+
+    return migrated
+
+
+def ensure_persistent_database(state):
+    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if PERSISTENT_DATABASE_FILE.exists():
+        return False
+
+    migration_source = ""
+    migrated = False
+
+    if LEGACY_STAGED_DATABASE_FILE.exists():
+        migrated = migrate_database_from(LEGACY_STAGED_DATABASE_FILE)
+        if migrated:
+            migration_source = "module-state"
+
+    if not migrated and LEGACY_CONTAINER_DATABASE_FILE.exists():
+        migrated = migrate_database_from(LEGACY_CONTAINER_DATABASE_FILE)
+        if migrated:
+            migration_source = "container-root"
+
+    if migrated:
+        state["database_migrated_at"] = utc_now()
+        state["database_migration_source"] = migration_source
+        state["updated_at"] = utc_now()
+
+    return migrated
+
+
+def update_tls_metadata(state, certificate_host, available, synced):
+    changed = False
+
+    if state.get("tls_certificate_available") != available:
+        state["tls_certificate_available"] = available
+        changed = True
+
+    if state.get("tls_certificate_host") != certificate_host:
+        state["tls_certificate_host"] = certificate_host
+        changed = True
+
+    if available and (synced or changed or not state.get("tls_certificate_synced_at")):
+        state["tls_certificate_synced_at"] = utc_now()
+        changed = True
+
+    if changed:
+        state["updated_at"] = utc_now()
+
+    return changed
+
+
+def sync_staged_certificates(state):
+    certificate_host = (os.environ.get("TRAEFIK_HOST") or "").strip().lower()
+
+    if not STAGED_CERTIFICATE_FILE.exists() or not STAGED_PRIVATEKEY_FILE.exists():
+        return update_tls_metadata(
+            state,
+            certificate_host,
+            available=False,
+            synced=False,
+        )
+
+    synced = False
+    for source, destination, mode in TLS_SYNC_TARGETS:
+        synced = sync_file(source, destination, mode=mode) or synced
+
+    metadata_changed = update_tls_metadata(
+        state,
+        certificate_host,
+        available=True,
+        synced=synced,
+    )
+    return synced or metadata_changed
 
 
 def build_runtime_path():
@@ -236,13 +384,18 @@ def main():
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     ensure_music_runtime()
     state = load_state()
+    state_changed = False
+    state_changed = ensure_persistent_database(state) or state_changed
+    state_changed = sync_staged_certificates(state) or state_changed
+    if state_changed:
+        save_state(state)
     save_state(state)
     process_env = os.environ.copy()
     process_env["PATH"] = build_runtime_path()
 
     process = subprocess.Popen(
         ["./TeaSpeakServer"],
-        cwd="/ts",
+        cwd=str(TEASPEAK_ROOT),
         env=process_env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

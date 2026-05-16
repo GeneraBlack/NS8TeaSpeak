@@ -56,7 +56,7 @@ config_file = config_dir / "config.yml"
 config_lines = [
     "general:",
     f"  license: {json.dumps(license_key)}",
-    '  database_url: "sqlite://TeaData.sqlite"',
+    '  database_url: "sqlite://database/TeaData.sqlite"',
     "binding:",
     "  query:",
     '    host: "0.0.0.0"',

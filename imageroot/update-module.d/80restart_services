@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+if [ -f environment ]; then
+    set -a
+    . ./environment
+    set +a
+fi
+
+systemctl --user daemon-reload
+systemctl --user start teaspeak-certificate.service || true
+systemctl --user restart teaspeak.service || true
+
+if [ "${WEB_ENABLED:-1}" = "1" ]; then
+    systemctl --user restart teaspeak-web.service || true
+else
+    systemctl --user stop teaspeak-web.service || true
+fi

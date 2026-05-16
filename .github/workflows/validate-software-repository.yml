@@ -321,6 +321,7 @@ jobs:
           service_unit = Path("imageroot/systemd/user/teaspeak.service").read_text(encoding="utf-8")
           certificate_unit = Path("imageroot/systemd/user/teaspeak-certificate.service").read_text(encoding="utf-8")
           certificate_event = Path("imageroot/events/certificate-changed/50get_certificate").read_text(encoding="utf-8")
+          update_restart = Path("imageroot/update-module.d/80restart_services").read_text(encoding="utf-8")
 
           required_service = [
               "Wants=teaspeak-certificate.service",
@@ -357,6 +358,19 @@ jobs:
           if missing_event:
               print("certificate-changed event hook is incomplete:", file=sys.stderr)
               for snippet in missing_event:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+
+          required_update_restart = [
+              "systemctl --user daemon-reload",
+              "teaspeak-certificate.service",
+              "restart teaspeak.service",
+              "restart teaspeak-web.service",
+          ]
+          missing_update_restart = [snippet for snippet in required_update_restart if snippet not in update_restart]
+          if missing_update_restart:
+              print("update-module.d must refresh certificates and restart services after updates:", file=sys.stderr)
+              for snippet in missing_update_restart:
                   print(snippet, file=sys.stderr)
               sys.exit(1)
 

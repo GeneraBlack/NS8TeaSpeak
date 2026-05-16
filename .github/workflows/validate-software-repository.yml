@@ -282,6 +282,7 @@ jobs:
       - name: Validate TeaWeb nginx config
         run: |
           docker run --rm \
+                        --add-host=host.containers.internal:127.0.0.1 \
             -v "$PWD/images/teaspeak-web/default.conf:/etc/nginx/conf.d/default.conf:ro" \
             -v "$PWD/images/teaspeak-web/nginx.conf:/etc/nginx/nginx.conf:ro" \
             nginx:1.30.1-alpine3.23-slim \
@@ -293,19 +294,33 @@ jobs:
           import sys
           from pathlib import Path
 
-          containerfile = Path("images/teaspeak-web/Containerfile").read_text(encoding="utf-8")
+          patch_sources = "\n".join(
+              Path(path).read_text(encoding="utf-8")
+              for path in [
+                  "images/teaspeak-web/Containerfile",
+                  "images/teaspeak-web/default.conf",
+                  "images/teaspeak-web/nginx.conf",
+              ]
+          )
           required = [
               "ns8TeaSpeakAutoConnect",
               'url.searchParams.set("connect_default","1");',
+              'url.searchParams.set("connect_address",host+":"+port);',
+              'url.searchParams.set("connect_no_dnsproxy","true");',
+              'a.host=s.originalAddress.hostname,a.port=s.resolvedAddress.port',
+              'missing TeaWeb DNS preserve-host patch target',
+              'host.containers.internal:9987',
+              'proxy_ssl_verify off',
               'e&&e.nodeType?[$(e)]:b("<unknwon object>")',
-              'missing TeaWeb certificate callback address patch target',
-              'missing TeaWeb certificate callback URL patch target',
+              'missing TeaWeb certificate callback address sanity target',
+              'missing TeaWeb certificate callback URL sanity target',
           ]
           forbidden = [
               'url.searchParams.has("ca")',
-              'url.searchParams.set("connect_no_dnsproxy","true");',
+              'new URLSearchParams(document.location.search).get("connect_address")||this.serverConnection.remote_address().host',
+              'new URLSearchParams(document.location.search).get("connect_address")||e.serverConnection.remote_address().host',
           ]
-          missing = [snippet for snippet in required if snippet not in containerfile]
+          missing = [snippet for snippet in required if snippet not in patch_sources]
 
           if missing:
               print("The TeaWeb image build is missing required runtime patch hooks:", file=sys.stderr)
@@ -313,9 +328,9 @@ jobs:
                   print(snippet, file=sys.stderr)
               sys.exit(1)
 
-          present_forbidden = [snippet for snippet in forbidden if snippet in containerfile]
+          present_forbidden = [snippet for snippet in forbidden if snippet in patch_sources]
           if present_forbidden:
-              print("The TeaWeb auto-connect patch must not treat 'ca' as a certificate flag:", file=sys.stderr)
+              print("The TeaWeb image build contains obsolete runtime patch hooks:", file=sys.stderr)
               for snippet in present_forbidden:
                   print(snippet, file=sys.stderr)
               sys.exit(1)

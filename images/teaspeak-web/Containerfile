@@ -25,8 +25,11 @@ auto_connect_script = (
     'var url=new URL(window.location.href);'
     'if(url.search.length!==0||url.searchParams.has("connect_default")||'
     'url.searchParams.has("connect_address"))return;'
+    'var host=window.location.hostname;'
+    'var port=window.location.port||(window.location.protocol==="https:"?"443":"80");'
     'url.searchParams.set("connect_default","1");'
-    'url.searchParams.set("connect_address",window.location.hostname);'
+    'url.searchParams.set("connect_address",host+":"+port);'
+    'url.searchParams.set("connect_no_dnsproxy","true");'
     'window.location.replace(url.toString());'
     '})();</script>'
 )
@@ -49,17 +52,18 @@ format_bundle_path.write_text(format_bundle_js, encoding="utf-8")
 
 connection_bundle_path = Path("/var/www/TeaWeb/js/14640fc9f0bf331a50cf.js")
 connection_bundle_js = connection_bundle_path.read_text(encoding="utf-8")
-cert_address_old_snippet = 'connect_address:this.serverConnection.remote_address().host+(9987!==this.serverConnection.remote_address().port?":"+this.serverConnection.remote_address().port:"")'
-cert_address_new_snippet = 'connect_address:(new URLSearchParams(document.location.search).get("connect_address")||this.serverConnection.remote_address().host)+(9987!==this.serverConnection.remote_address().port?":"+this.serverConnection.remote_address().port:"")'
-if cert_address_old_snippet not in connection_bundle_js:
-    raise SystemExit("missing TeaWeb certificate callback address patch target")
-connection_bundle_js = connection_bundle_js.replace(cert_address_old_snippet, cert_address_new_snippet, 1)
+dns_resolve_old_snippet = 'a.host=s.resolvedAddress.hostname,a.port=s.resolvedAddress.port'
+dns_resolve_new_snippet = 'a.host=s.originalAddress.hostname,a.port=s.resolvedAddress.port'
+if dns_resolve_old_snippet not in connection_bundle_js:
+    raise SystemExit("missing TeaWeb DNS preserve-host patch target")
+connection_bundle_js = connection_bundle_js.replace(dns_resolve_old_snippet, dns_resolve_new_snippet, 1)
 
-cert_url_old_snippet = '"https://"+e.serverConnection.remote_address().host+":"+e.serverConnection.remote_address().port+"/?forward_url="+encodeURIComponent(c)'
-cert_url_new_snippet = '"https://"+((new URLSearchParams(document.location.search).get("connect_address")||e.serverConnection.remote_address().host).replace(/:\\d+$/,""))+":"+e.serverConnection.remote_address().port+"/?forward_url="+encodeURIComponent(c)'
-if cert_url_old_snippet not in connection_bundle_js:
-    raise SystemExit("missing TeaWeb certificate callback URL patch target")
-connection_bundle_js = connection_bundle_js.replace(cert_url_old_snippet, cert_url_new_snippet, 1)
+cert_address_upstream_snippet = 'connect_address:this.serverConnection.remote_address().host+(9987!==this.serverConnection.remote_address().port?":"+this.serverConnection.remote_address().port:"")'
+cert_url_upstream_snippet = '"https://"+e.serverConnection.remote_address().host+":"+e.serverConnection.remote_address().port+"/?forward_url="+encodeURIComponent(c)'
+if cert_address_upstream_snippet not in connection_bundle_js:
+    raise SystemExit("missing TeaWeb certificate callback address sanity target")
+if cert_url_upstream_snippet not in connection_bundle_js:
+    raise SystemExit("missing TeaWeb certificate callback URL sanity target")
 
 connection_bundle_path.write_text(connection_bundle_js, encoding="utf-8")
 PY

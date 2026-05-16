@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.22`.
+The repository currently advertises GUI release `0.1.23`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -85,8 +85,9 @@ When `web_enabled` is true, the module starts a bundled TeaWeb sidecar on an int
 Set `web_host` to publish TeaWeb through Traefik. If `web_lets_encrypt` is true, the module asks Traefik to obtain a Let's Encrypt certificate for that hostname.
 If `web_host` is left empty, TeaWeb remains enabled internally but no public Traefik route is created.
 
-The TeaWeb landing page now auto-adds `connect_default=1` and `connect_address=<requested host>` when the public URL is opened without query parameters.
-In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt against TeaSpeak's default client port `9987` while keeping TeaWeb's upstream DNS proxy/con-gate fallback enabled for browser-trusted WebSocket transport.
+The TeaWeb landing page now auto-adds `connect_default=1`, `connect_address=<requested host>:443`, and `connect_no_dnsproxy=true` when the public URL is opened without query parameters.
+In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt through the public Traefik HTTPS route instead of asking the browser to connect directly to TeaSpeak's `9987` WebSocket endpoint.
+The TeaWeb sidecar proxies WebSocket upgrade requests from Traefik to TeaSpeak's internal `9987` listener, so the browser only validates the normal `web_host` certificate on port `443`.
 
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.
@@ -94,7 +95,8 @@ The `ns8teaspeak-web` image patches that release during build so the certificate
 The module mirrors the active Traefik certificate for `web_host` into TeaSpeak's own TLS files during service start and on `certificate-changed` events.
 Before TeaSpeak starts, the service entrypoint validates that the staged certificate still matches the current `web_host` and is inside its validity window; stale certificates from previous hosts are removed before the server boots.
 For existing installations it also refreshes TeaSpeak's persisted web certificate database entries (`webcert-cert`, `webcert-key`, `webcert-revision`) so an older stored web certificate cannot linger in the database.
-TeaSpeak 1.5.6 still manages the browser-facing WebSocket certificate on `9987` internally, so the TeaWeb image keeps the upstream DNS proxy/con-gate connection path enabled instead of forcing a direct browser TLS connection to the TeaSpeak port.
+TeaSpeak 1.5.6 still manages the WebSocket certificate on `9987` internally and does not reliably use the staged Traefik certificate for that listener.
+For browser clients, the module therefore keeps `9987` behind the TeaWeb sidecar and lets Traefik terminate the public TLS connection on `443`.
 Module updates restart TeaSpeak after refreshing the staged Traefik certificate so old containers cannot keep running after the new module image is installed.
 
 When `music_enabled` is true, the module enables TeaSpeak's built-in music bot system in the server configuration.

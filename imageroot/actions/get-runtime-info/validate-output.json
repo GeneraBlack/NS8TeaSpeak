@@ -9,6 +9,9 @@
         "credentials_available",
         "credentials_captured_at",
         "credentials_source",
+        "tls_certificate_available",
+        "tls_certificate_host",
+        "tls_certificate_synced_at",
         "query_ssl_mode",
         "web_enabled",
         "web_route_host",
@@ -29,6 +32,15 @@
             "type": "string"
         },
         "credentials_source": {
+            "type": "string"
+        },
+        "tls_certificate_available": {
+            "type": "boolean"
+        },
+        "tls_certificate_host": {
+            "type": "string"
+        },
+        "tls_certificate_synced_at": {
             "type": "string"
         },
         "query_ssl_mode": {

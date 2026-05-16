@@ -4,7 +4,10 @@ set -e
 exec 1>&2
 
 staging_dir="runtime/legacy-database"
-container_name="teaspeak.service"
+container_candidates=(
+    "teaspeak.service"
+    "teaspeak"
+)
 
 if [[ -s "${staging_dir}/TeaData.sqlite" ]]; then
     exit 0
@@ -12,15 +15,33 @@ fi
 
 mkdir -p "${staging_dir}"
 
-if ! podman container exists "${container_name}"; then
-    exit 0
-fi
+copy_database_from_container() {
+    local container_name="$1"
 
-if ! podman cp "${container_name}:/ts/TeaData.sqlite" "${staging_dir}/TeaData.sqlite"; then
-    rm -f "${staging_dir}/TeaData.sqlite"
-    exit 0
-fi
+    if ! podman container exists "${container_name}"; then
+        return 1
+    fi
 
-for suffix in -wal -shm -journal; do
-    podman cp "${container_name}:/ts/TeaData.sqlite${suffix}" "${staging_dir}/TeaData.sqlite${suffix}" || true
+    if ! podman cp "${container_name}:/ts/TeaData.sqlite" "${staging_dir}/TeaData.sqlite"; then
+        rm -f \
+            "${staging_dir}/TeaData.sqlite" \
+            "${staging_dir}/TeaData.sqlite-wal" \
+            "${staging_dir}/TeaData.sqlite-shm" \
+            "${staging_dir}/TeaData.sqlite-journal"
+        return 1
+    fi
+
+    for suffix in -wal -shm -journal; do
+        podman cp "${container_name}:/ts/TeaData.sqlite${suffix}" "${staging_dir}/TeaData.sqlite${suffix}" || true
+    done
+
+    return 0
+}
+
+for container_name in "${container_candidates[@]}"; do
+    if copy_database_from_container "${container_name}"; then
+        exit 0
+    fi
 done
+
+exit 0

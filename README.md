@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.23`.
+The repository currently advertises GUI release `0.1.24`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -86,6 +86,7 @@ Set `web_host` to publish TeaWeb through Traefik. If `web_lets_encrypt` is true,
 If `web_host` is left empty, TeaWeb remains enabled internally but no public Traefik route is created.
 
 The TeaWeb landing page now auto-adds `connect_default=1`, `connect_address=<requested host>:443`, and `connect_no_dnsproxy=true` when the public URL is opened without query parameters.
+It also normalizes older NS8 self-connect URLs like `?connect_default=1&connect_address=<requested host>` so cached browser URLs do not keep using direct `9987` WebSocket TLS.
 In practice this means opening `https://<web_host>/` immediately starts a TeaWeb connection attempt through the public Traefik HTTPS route instead of asking the browser to connect directly to TeaSpeak's `9987` WebSocket endpoint.
 The TeaWeb sidecar proxies WebSocket upgrade requests from Traefik to TeaSpeak's internal `9987` listener, so the browser only validates the normal `web_host` certificate on port `443`.
 

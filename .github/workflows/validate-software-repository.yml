@@ -305,7 +305,9 @@ jobs:
           required = [
               "ns8TeaSpeakAutoConnect",
               'url.searchParams.set("connect_default","1");',
-              'url.searchParams.set("connect_address",host+":"+port);',
+              'var localAddress=!address||address===host||address===host+":9987"||address===target;',
+              'var shouldNormalize=url.searchParams.has("connect_default")&&localAddress;',
+              'url.searchParams.set("connect_address",target);',
               'url.searchParams.set("connect_no_dnsproxy","true");',
               'a.host=s.originalAddress.hostname,a.port=s.resolvedAddress.port',
               'missing TeaWeb DNS preserve-host patch target',
@@ -317,6 +319,7 @@ jobs:
           ]
           forbidden = [
               'url.searchParams.has("ca")',
+              'if(url.search.length!==0||url.searchParams.has("connect_default")||',
               'new URLSearchParams(document.location.search).get("connect_address")||this.serverConnection.remote_address().host',
               'new URLSearchParams(document.location.search).get("connect_address")||e.serverConnection.remote_address().host',
           ]

@@ -215,6 +215,28 @@ def ensure_persistent_database(state):
     return migrated
 
 
+def ensure_legacy_database_link():
+    if LEGACY_CONTAINER_DATABASE_FILE.is_symlink():
+        try:
+            if LEGACY_CONTAINER_DATABASE_FILE.resolve() == PERSISTENT_DATABASE_FILE:
+                return False
+        except OSError:
+            pass
+        LEGACY_CONTAINER_DATABASE_FILE.unlink()
+
+    if LEGACY_CONTAINER_DATABASE_FILE.exists():
+        if not PERSISTENT_DATABASE_FILE.exists():
+            migrate_database_from(LEGACY_CONTAINER_DATABASE_FILE)
+        elif LEGACY_CONTAINER_DATABASE_FILE.is_file():
+            LEGACY_CONTAINER_DATABASE_FILE.unlink()
+
+    if not LEGACY_CONTAINER_DATABASE_FILE.exists() and not LEGACY_CONTAINER_DATABASE_FILE.is_symlink():
+        LEGACY_CONTAINER_DATABASE_FILE.symlink_to(PERSISTENT_DATABASE_FILE)
+        return True
+
+    return False
+
+
 def update_tls_metadata(state, certificate_host, available, synced):
     changed = False
 
@@ -386,6 +408,7 @@ def main():
     state = load_state()
     state_changed = False
     state_changed = ensure_persistent_database(state) or state_changed
+    state_changed = ensure_legacy_database_link() or state_changed
     state_changed = sync_staged_certificates(state) or state_changed
     if state_changed:
         save_state(state)
@@ -394,7 +417,14 @@ def main():
     process_env["PATH"] = build_runtime_path()
 
     process = subprocess.Popen(
-        ["./TeaSpeakServer"],
+        [
+            "./TeaSpeakServer",
+            "-Pgeneral.database.url=sqlite:///ts/database/TeaData.sqlite",
+            "-Pquery.ssl.certificate=/ts/certs/query_certificate.pem",
+            "-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem",
+            "-Pweb.ssl.certificate=/ts/certs/default_certificate.pem",
+            "-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem",
+        ],
         cwd=str(TEASPEAK_ROOT),
         env=process_env,
         stdout=subprocess.PIPE,

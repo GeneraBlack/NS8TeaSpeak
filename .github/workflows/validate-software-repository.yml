@@ -193,14 +193,25 @@ jobs:
           from pathlib import Path
 
           config_action = Path("imageroot/actions/configure-module/20configure").read_text(encoding="utf-8")
+          entrypoint = Path("images/teaspeak-service/teaspeak-entrypoint.py").read_text(encoding="utf-8")
           required = [
-              'sqlite://database/TeaData.sqlite',
-              'certificate: "certs/query_certificate.pem"',
-              'privatekey: "certs/query_privatekey.pem"',
-              'certificate: "certs/default_certificate.pem"',
-              'privatekey: "certs/default_privatekey.pem"',
+              'database:',
+              'url: "sqlite:///ts/database/TeaData.sqlite"',
+              'certificate: "/ts/certs/query_certificate.pem"',
+              'privatekey: "/ts/certs/query_privatekey.pem"',
+              'certificate: "/ts/certs/default_certificate.pem"',
+              'privatekey: "/ts/certs/default_privatekey.pem"',
           ]
           missing = [snippet for snippet in required if snippet not in config_action]
+          required_entrypoint = [
+              '-Pgeneral.database.url=sqlite:///ts/database/TeaData.sqlite',
+              '-Pquery.ssl.certificate=/ts/certs/query_certificate.pem',
+              '-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem',
+              '-Pweb.ssl.certificate=/ts/certs/default_certificate.pem',
+              '-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem',
+              'ensure_legacy_database_link()',
+          ]
+          missing.extend(snippet for snippet in required_entrypoint if snippet not in entrypoint)
           if missing:
               print("configure-module must persist the database and wire TeaSpeak TLS paths explicitly.", file=sys.stderr)
               for snippet in missing:

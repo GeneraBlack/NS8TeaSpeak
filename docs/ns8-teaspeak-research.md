@@ -88,7 +88,7 @@ Diese Pfade sollten im NS8-Modul jeweils auf benannte Podman-Volumes gemappt wer
 Das offizielle TeaDocker-Image startet den Server mit:
 
 - Entry point: ./TeaSpeakServer
-- Default-CMD: -Pgeneral.database.url=sqlite://database/TeaData.sqlite
+- Default-CMD: -Pgeneral.database.url=sqlite:///ts/database/TeaData.sqlite
 
 Wichtige Folge:
 
@@ -99,7 +99,7 @@ Wichtige Folge:
 
 Relevante Defaults aus der Upstream-Standardkonfiguration:
 
-- general.database_url = sqlite://TeaData.sqlite
+- general.database.url = sqlite:///ts/database/TeaData.sqlite
 - general.license = none
 - general.crash_path = crash_dumps/
 - binding.query.host = 0.0.0.0
@@ -108,11 +108,11 @@ Relevante Defaults aus der Upstream-Standardkonfiguration:
 - binding.file.port = 30303
 - voice.default_port = 9987
 - query.enableSSL = 2
-- query.ssl.certificate = certs/query_certificate.pem
-- query.ssl.privatekey = certs/query_privatekey.pem
+- query.ssl.certificate = /ts/certs/query_certificate.pem
+- query.ssl.privatekey = /ts/certs/query_privatekey.pem
 - web.enabled = 1
-- web.ssl.certificate = certs/default_certificate.pem
-- web.ssl.privatekey = certs/default_privatekey.pem
+- web.ssl.certificate = /ts/certs/default_certificate.pem
+- web.ssl.privatekey = /ts/certs/default_privatekey.pem
 - music.enabled = 1
 - vpn.enabled = 0
 

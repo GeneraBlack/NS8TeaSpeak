@@ -99,7 +99,8 @@ The service image now also ships the upstream runtime prerequisites for the buil
 It also pre-creates the TeaSpeak provider config files, mirrors the packaged tools into `/ts/providers/bin`, and the service entrypoint now reasserts those files plus a provider-first `PATH` at container startup so NS8 runtime differences cannot drop the music helper resolution back to a bare `youtube-dl` lookup.
 There is no separate TeaMusic runtime image integrated yet because the upstream TeaMusic repository does not currently provide a stable, documented release artifact for direct deployment.
 
-TeaSpeak now also stores its SQLite database on the persisted `/ts/database` volume via `sqlite://database/TeaData.sqlite`.
+TeaSpeak now also stores its SQLite database on the persisted `/ts/database` volume via `sqlite:///ts/database/TeaData.sqlite`.
+The service entrypoint also passes TeaSpeak explicit `-Pgeneral.database.url=...` and TLS file overrides, and keeps `/ts/TeaData.sqlite` as a compatibility symlink to the persisted database file so older/default TeaSpeak paths cannot fall back to ephemeral container storage.
 During module updates the updater stages any legacy in-container `TeaData.sqlite` file into module state, and the next container start imports it into the persisted database volume before the server boots.
 
 ## Initial credentials

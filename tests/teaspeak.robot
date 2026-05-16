@@ -34,7 +34,7 @@ Read TeaSpeak Runtime Info
     [Return]    ${output}
 
 TeaSpeak database should exist on persisted volume
-    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service test -s /ts/database/TeaData.sqlite
+    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service sh -lc 'test -s /ts/database/TeaData.sqlite && test "$(readlink /ts/TeaData.sqlite)" = /ts/database/TeaData.sqlite && grep -q "sqlite:///ts/database/TeaData.sqlite" /ts/config/config.yml && grep -q "BEGIN CERTIFICATE" /ts/certs/default_certificate.pem'
     ...    return_rc=True
     Should Be Equal As Integers    ${rc}  0
 

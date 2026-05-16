@@ -110,3 +110,7 @@ tests/outputs/
 .tmp-teaweb/
 publish-run-*.zip
 publish-run-*-logs/
+
+# Python bytecode
+__pycache__/
+*.py[cod]

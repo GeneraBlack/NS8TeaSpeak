@@ -18,12 +18,16 @@ RUN apt-get update \
     && wget -nv -O /tmp/TeaSpeak.tar.gz "https://repo.teaspeak.de/server/linux/amd64_stable/TeaSpeak-${TEASPEAK_VERSION}.tar.gz" \
     && tar -xzf /tmp/TeaSpeak.tar.gz -C /ts \
     && rm /tmp/TeaSpeak.tar.gz \
-    && mkdir -p /ts/providers \
+    && mkdir -p /ts/providers /ts/providers/bin \
     && printf '' > /ts/config/config.yml \
-    && printf '[general]\nffmpeg_command=/usr/bin/ffmpeg\n' > /ts/providers/config_ffmpeg.ini \
-    && printf '[general]\nyoutubedl_command=/usr/local/bin/youtube-dl\n' > /ts/providers/config_youtube.ini \
+    && printf '[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n' > /ts/providers/config_ffmpeg.ini \
+    && printf '[general]\nyoutubedl_command=/ts/providers/bin/youtube-dl\n' > /ts/providers/config_youtube.ini \
+    && ln -sf /usr/bin/ffmpeg /ts/providers/bin/ffmpeg \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && ln -sf /usr/bin/yt-dlp /usr/bin/youtube-dl \
     && ln -sf /usr/bin/yt-dlp /usr/local/bin/youtube-dl \
+    && ln -sf /usr/bin/yt-dlp /ts/providers/bin/youtube-dl \
     && ln -sf /ts/config/config.yml /ts/config.yml \
     && groupadd -g ${gid} teaspeak \
     && useradd -M -u ${uid} -g ${gid} teaspeak \

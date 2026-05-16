@@ -162,8 +162,11 @@ jobs:
               "yt-dlp",
               "config_ffmpeg.ini",
               "config_youtube.ini",
-              "ln -sf /usr/bin/python3 /usr/local/bin/python",
-              "ln -sf /usr/bin/yt-dlp /usr/local/bin/youtube-dl",
+              "ffmpeg_command=/ts/providers/bin/ffmpeg",
+              "youtubedl_command=/ts/providers/bin/youtube-dl",
+              "ln -sf /usr/bin/python3 /usr/bin/python",
+              "ln -sf /usr/bin/yt-dlp /usr/bin/youtube-dl",
+              "ln -sf /usr/bin/yt-dlp /ts/providers/bin/youtube-dl",
           ]
           missing = [snippet for snippet in required if snippet not in containerfile]
 

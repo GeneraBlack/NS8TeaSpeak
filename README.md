@@ -96,7 +96,7 @@ If TeaSpeak itself still serves an untrusted certificate on port `9987`, browser
 
 When `music_enabled` is true, the module enables TeaSpeak's built-in music bot system in the server configuration.
 The service image now also ships the upstream runtime prerequisites for the built-in music providers: `ffmpeg`, `python3`, a `python` compatibility symlink and a `youtube-dl` compatibility command backed by `yt-dlp`.
-It also pre-creates the TeaSpeak provider config files so the music bot resolves the packaged binaries explicitly instead of depending on ad-hoc in-container setup.
+It also pre-creates the TeaSpeak provider config files and mirrors the packaged tools into `/ts/providers/bin`, while also exposing compatibility symlinks in `/usr/bin`, so the music bot no longer depends on `/usr/local/bin` being present in the runtime PATH.
 There is no separate TeaMusic runtime image integrated yet because the upstream TeaMusic repository does not currently provide a stable, documented release artifact for direct deployment.
 
 ## Initial credentials

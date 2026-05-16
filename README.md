@@ -50,7 +50,7 @@ To add it from the NS8 web interface:
 6. Click `Reload repositories`.
 
 TeaSpeak will then appear in the Software center as soon as a matching semantic-version image tag is published.
-The repository currently advertises GUI release `0.1.17`.
+The repository currently advertises GUI release `0.1.18`.
 
 Note: the raw repository base URL returns `404` in a browser because GitHub Raw does not expose directory listings. NS8 still works with it because it requests `repodata.json` explicitly. For a manual browser check, open `https://raw.githubusercontent.com/GeneraBlack/NS8TeaSpeak/main/repository/repodata.json` directly.
 
@@ -91,7 +91,8 @@ In practice this means opening `https://<web_host>/` immediately starts a TeaWeb
 TeaWeb release `59737567` also has an upstream formatting bug where the browser certificate fallback renders as `<unknwon object>` instead of a clickable link.
 The `ns8teaspeak-web` image patches that release during build so the certificate acceptance link is clickable again.
 
-The module now mirrors the active Traefik certificate for `web_host` into TeaSpeak's own TLS files during service start and on `certificate-changed` events.
+The module mirrors the active Traefik certificate for `web_host` into TeaSpeak's own TLS files during service start and on `certificate-changed` events.
+Before TeaSpeak starts, the service entrypoint validates that the staged certificate still matches the current `web_host` and is inside its validity window; stale certificates from previous hosts are removed instead of being served on port `9987`.
 In practice TeaWeb and TeaSpeak now present the same certificate chain for the shared hostname, so the browser-side one-time certificate acceptance flow should no longer be required once Traefik has a trusted certificate for that host.
 The TeaWeb image also patches the upstream browser client so DNS resolution does not replace the configured hostname with its IP address before opening the TLS WebSocket. This keeps browser certificate validation aligned with the `web_host` certificate and prevents the certificate fallback link from redirecting back to an IP-based `connect_address`.
 

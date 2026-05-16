@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import ssl
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -21,11 +22,13 @@ LEGACY_STAGED_DATABASE_FILE = LEGACY_DATABASE_STAGE_DIR / DATABASE_FILENAME
 DATABASE_FILE_SUFFIXES = ("", "-wal", "-shm", "-journal")
 CERTS_DIR = TEASPEAK_ROOT / "certs"
 STAGED_TLS_DIR = STATE_DIR / "tls"
-STAGED_CERTIFICATE_FILE = STAGED_TLS_DIR / "default_certificate.pem"
-STAGED_PRIVATEKEY_FILE = STAGED_TLS_DIR / "default_privatekey.pem"
+DEFAULT_CERTIFICATE_FILENAME = "default_certificate.pem"
+DEFAULT_PRIVATEKEY_FILENAME = "default_privatekey.pem"
+STAGED_CERTIFICATE_FILE = STAGED_TLS_DIR / DEFAULT_CERTIFICATE_FILENAME
+STAGED_PRIVATEKEY_FILE = STAGED_TLS_DIR / DEFAULT_PRIVATEKEY_FILENAME
 TLS_SYNC_TARGETS = (
-    (STAGED_CERTIFICATE_FILE, CERTS_DIR / "default_certificate.pem", 0o644),
-    (STAGED_PRIVATEKEY_FILE, CERTS_DIR / "default_privatekey.pem", 0o600),
+    (STAGED_CERTIFICATE_FILE, CERTS_DIR / DEFAULT_CERTIFICATE_FILENAME, 0o644),
+    (STAGED_PRIVATEKEY_FILE, CERTS_DIR / DEFAULT_PRIVATEKEY_FILENAME, 0o600),
     (STAGED_CERTIFICATE_FILE, CERTS_DIR / "query_certificate.pem", 0o644),
     (STAGED_PRIVATEKEY_FILE, CERTS_DIR / "query_privatekey.pem", 0o600),
 )
@@ -40,6 +43,7 @@ YOUTUBE_WRAPPER_PATH = PROVIDERS_BIN_DIR / "youtube-dl"
 YOUTUBE_WRAPPER = '#!/bin/sh\nexec /usr/local/bin/yt-dlp "$@"\n'
 FFMPEG_CONFIG = "[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n"
 YOUTUBE_CONFIG = "[general]\nyoutubedl_command=/ts/providers/bin/youtube-dl\n"
+CERTIFICATE_TIME_FORMAT = "%b %d %H:%M:%S %Y %Z"
 
 
 def utc_now():
@@ -155,6 +159,138 @@ def sync_file(source, destination, mode=None, delete_source=False):
     return True
 
 
+def remove_file(path):
+    try:
+        if path.exists() or path.is_symlink():
+            path.unlink()
+            return True
+    except OSError:
+        pass
+
+    return False
+
+
+def clear_tls_targets():
+    removed = False
+
+    for _, destination, _ in TLS_SYNC_TARGETS:
+        removed = remove_file(destination) or removed
+
+    return removed
+
+
+def clear_staged_certificates():
+    return remove_file(STAGED_CERTIFICATE_FILE) or remove_file(STAGED_PRIVATEKEY_FILE)
+
+
+def parse_certificate_time(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(value, CERTIFICATE_TIME_FORMAT).replace(
+            tzinfo=timezone.utc
+        )
+    except ValueError:
+        return None
+
+
+def read_certificate_metadata(path):
+    try:
+        return ssl._ssl._test_decode_cert(str(path))
+    except (OSError, ValueError):
+        return None
+
+
+def certificate_time_is_valid(metadata):
+    now = datetime.now(timezone.utc)
+    not_before = parse_certificate_time(metadata.get("notBefore", ""))
+    not_after = parse_certificate_time(metadata.get("notAfter", ""))
+
+    if not_before and now < not_before:
+        return False
+    if not_after and now > not_after:
+        return False
+
+    return True
+
+
+def normalize_hostname(value):
+    try:
+        return value.strip().rstrip(".").lower().encode("idna").decode("ascii")
+    except UnicodeError:
+        return value.strip().rstrip(".").lower()
+
+
+def certificate_dns_names(metadata):
+    subject_alt_names = [
+        value
+        for key, value in metadata.get("subjectAltName", ())
+        if key.lower() == "dns"
+    ]
+
+    if subject_alt_names:
+        return subject_alt_names
+
+    common_names = []
+    for relative_distinguished_name in metadata.get("subject", ()):
+        for key, value in relative_distinguished_name:
+            if key == "commonName":
+                common_names.append(value)
+
+    return common_names
+
+
+def hostname_pattern_matches(pattern, certificate_host):
+    normalized_pattern = normalize_hostname(pattern)
+    normalized_host = normalize_hostname(certificate_host)
+
+    if normalized_pattern.startswith("*."):
+        suffix = normalized_pattern[1:]
+        return (
+            normalized_host.endswith(suffix)
+            and normalized_host != suffix.lstrip(".")
+            and normalized_host.count(".") == normalized_pattern.count(".")
+        )
+
+    return normalized_pattern == normalized_host
+
+
+def certificate_hostname_matches(metadata, certificate_host):
+    for dns_name in certificate_dns_names(metadata):
+        if hostname_pattern_matches(dns_name, certificate_host):
+            return True
+
+    return False
+
+
+def certificate_pair_is_usable(certificate_file, privatekey_file, certificate_host):
+    if not certificate_host:
+        return False, "missing certificate host"
+
+    if not certificate_file.exists() or not privatekey_file.exists():
+        return False, "certificate or private key missing"
+
+    try:
+        if certificate_file.stat().st_size == 0 or privatekey_file.stat().st_size == 0:
+            return False, "certificate or private key empty"
+    except OSError:
+        return False, "certificate or private key inaccessible"
+
+    metadata = read_certificate_metadata(certificate_file)
+    if not metadata:
+        return False, "certificate cannot be decoded"
+
+    if not certificate_time_is_valid(metadata):
+        return False, "certificate is not currently valid"
+
+    if not certificate_hostname_matches(metadata, certificate_host):
+        subject = metadata.get("subject", ())
+        return False, f"certificate does not match {certificate_host}: {subject}"
+
+    return True, ""
+
+
 def ensure_symlink(path, target):
     try:
         if path.is_symlink() and os.readlink(path) == target:
@@ -261,13 +397,52 @@ def update_tls_metadata(state, certificate_host, available, synced):
 def sync_staged_certificates(state):
     certificate_host = (os.environ.get("TRAEFIK_HOST") or "").strip().lower()
 
-    if not STAGED_CERTIFICATE_FILE.exists() or not STAGED_PRIVATEKEY_FILE.exists():
-        return update_tls_metadata(
+    if not certificate_host:
+        cleared = clear_staged_certificates() or clear_tls_targets()
+        metadata_changed = update_tls_metadata(
             state,
             certificate_host,
             available=False,
-            synced=False,
+            synced=cleared,
         )
+        return cleared or metadata_changed
+
+    staged_valid, staged_reason = certificate_pair_is_usable(
+        STAGED_CERTIFICATE_FILE,
+        STAGED_PRIVATEKEY_FILE,
+        certificate_host,
+    )
+
+    if not staged_valid:
+        current_valid, current_reason = certificate_pair_is_usable(
+            CERTS_DIR / DEFAULT_CERTIFICATE_FILENAME,
+            CERTS_DIR / DEFAULT_PRIVATEKEY_FILENAME,
+            certificate_host,
+        )
+
+        clear_staged_certificates()
+
+        if current_valid:
+            return update_tls_metadata(
+                state,
+                certificate_host,
+                available=True,
+                synced=False,
+            )
+
+        cleared = clear_tls_targets()
+        print(
+            "[ns8teaspeak] TLS certificate unavailable for "
+            f"{certificate_host}: staged {staged_reason}; current {current_reason}",
+            flush=True,
+        )
+        metadata_changed = update_tls_metadata(
+            state,
+            certificate_host,
+            available=False,
+            synced=cleared,
+        )
+        return cleared or metadata_changed
 
     synced = False
     for source, destination, mode in TLS_SYNC_TARGETS:

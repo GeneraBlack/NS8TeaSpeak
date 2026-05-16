@@ -336,6 +336,7 @@ jobs:
           required_unit = [
               "SuccessExitStatus=3",
               "runagent get-certificate",
+              'rm -f "$cert" "$key"',
               "runtime/tls/default_certificate.pem",
               "runtime/tls/default_privatekey.pem",
           ]
@@ -355,6 +356,21 @@ jobs:
           if missing_event:
               print("certificate-changed event hook is incomplete:", file=sys.stderr)
               for snippet in missing_event:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+
+          entrypoint = Path("images/teaspeak-service/teaspeak-entrypoint.py").read_text(encoding="utf-8")
+          required_entrypoint = [
+              "certificate_pair_is_usable",
+              "hostname_pattern_matches",
+              "certificate_time_is_valid",
+              "clear_tls_targets",
+              "clear_staged_certificates",
+          ]
+          missing_entrypoint = [snippet for snippet in required_entrypoint if snippet not in entrypoint]
+          if missing_entrypoint:
+              print("teaspeak-entrypoint.py is missing certificate stale-file protection:", file=sys.stderr)
+              for snippet in missing_entrypoint:
                   print(snippet, file=sys.stderr)
               sys.exit(1)
           PY

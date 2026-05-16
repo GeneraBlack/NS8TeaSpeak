@@ -34,7 +34,7 @@ Read TeaSpeak Runtime Info
     [Return]    ${output}
 
 TeaSpeak database should exist on persisted volume
-    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service sh -lc 'test -s /ts/database/TeaData.sqlite && test "$(readlink /ts/TeaData.sqlite)" = /ts/database/TeaData.sqlite && grep -q "sqlite:///ts/database/TeaData.sqlite" /ts/config/config.yml && grep -q "BEGIN CERTIFICATE" /ts/certs/default_certificate.pem'
+    ${output}  ${rc} =    Execute Command    runagent -m ${module_id} podman exec teaspeak.service sh -lc 'test -s /ts/database/TeaData.sqlite && test "$(readlink /ts/TeaData.sqlite)" = /ts/database/TeaData.sqlite && grep -q "sqlite:///ts/database/TeaData.sqlite" /ts/config/config.yml'
     ...    return_rc=True
     Should Be Equal As Integers    ${rc}  0
 
@@ -57,6 +57,14 @@ TeaWeb certificate should be issued by Let's Encrypt
     ${output}  ${error}  ${rc} =    Execute Command    openssl s_client -connect 127.0.0.1:443 -servername ${host} </dev/null 2>/dev/null | openssl x509 -noout -issuer
     ...    return_rc=True  return_stdout=True  return_stderr=True
     Should Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    Let's Encrypt
+
+TeaSpeak web TLS certificate should be issued for host by Let's Encrypt
+    [Arguments]    ${host}
+    ${output}  ${error}  ${rc} =    Execute Command    openssl s_client -connect 127.0.0.1:9987 -servername ${host} </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer
+    ...    return_rc=True  return_stdout=True  return_stderr=True
+    Should Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    subject=CN = ${host}
     Should Contain    ${output}    Let's Encrypt
 
 *** Test Cases ***
@@ -155,6 +163,7 @@ Check optional Let's Encrypt issuance for TeaWeb
     Should Be Equal    ${runtime}[web_public_url]    https://${public_fqdn}
     Wait Until Keyword Succeeds    20 times    15 seconds    TeaWeb route is reachable for host    ${public_fqdn}
     Wait Until Keyword Succeeds    20 times    15 seconds    TeaWeb certificate should be issued by Let's Encrypt    ${public_fqdn}
+    Wait Until Keyword Succeeds    20 times    15 seconds    TeaSpeak web TLS certificate should be issued for host by Let's Encrypt    ${public_fqdn}
 
 Check if teaspeak is removed correctly
     ${rc} =    Execute Command    remove-module --no-preserve ${module_id}

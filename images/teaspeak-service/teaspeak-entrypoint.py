@@ -13,6 +13,15 @@ from datetime import datetime, timezone
 STATE_DIR = Path(os.environ.get("TEASPEAK_STATE_DIR", "/ts/module_state"))
 RUNTIME_STATE_FILE = STATE_DIR / "runtime-info.json"
 CAPTURED_LINES_FILE = STATE_DIR / "bootstrap-lines.log"
+PROVIDERS_DIR = Path("/ts/providers")
+PROVIDERS_BIN_DIR = PROVIDERS_DIR / "bin"
+FFMPEG_CONFIG_FILE = PROVIDERS_DIR / "config_ffmpeg.ini"
+YOUTUBE_CONFIG_FILE = PROVIDERS_DIR / "config_youtube.ini"
+FFMPEG_WRAPPER_PATH = PROVIDERS_BIN_DIR / "ffmpeg"
+YOUTUBE_WRAPPER_PATH = PROVIDERS_BIN_DIR / "youtube-dl"
+YOUTUBE_WRAPPER = '#!/bin/sh\nexec /usr/bin/python3 /usr/bin/yt-dlp "$@"\n'
+FFMPEG_CONFIG = "[general]\nffmpeg_command=/ts/providers/bin/ffmpeg\n"
+YOUTUBE_CONFIG = "[general]\nyoutubedl_command=/ts/providers/bin/youtube-dl\n"
 
 
 def utc_now():
@@ -62,6 +71,64 @@ def append_matching_line(line):
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with CAPTURED_LINES_FILE.open("a", encoding="utf-8", newline="\n") as stream:
         stream.write(line.rstrip("\n") + "\n")
+
+
+def ensure_text_file(path, content, mode=None):
+    current = None
+
+    try:
+        if path.exists() or path.is_symlink():
+            current = path.read_text(encoding="utf-8")
+    except OSError:
+        current = None
+
+    if current != content:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8", newline="\n")
+
+    if mode is not None:
+        try:
+            path.chmod(mode)
+        except OSError:
+            pass
+
+
+def ensure_symlink(path, target):
+    try:
+        if path.is_symlink() and os.readlink(path) == target:
+            return
+        if path.exists() or path.is_symlink():
+            path.unlink()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(target)
+    except OSError:
+        pass
+
+
+def ensure_music_runtime():
+    ensure_symlink(FFMPEG_WRAPPER_PATH, "/usr/bin/ffmpeg")
+    ensure_text_file(YOUTUBE_WRAPPER_PATH, YOUTUBE_WRAPPER, mode=0o755)
+    ensure_text_file(FFMPEG_CONFIG_FILE, FFMPEG_CONFIG)
+    ensure_text_file(YOUTUBE_CONFIG_FILE, YOUTUBE_CONFIG)
+
+
+def build_runtime_path():
+    preferred_entries = [
+        "/ts/providers/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+    ]
+    configured_entries = [
+        entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry
+    ]
+    ordered_entries = []
+
+    for entry in preferred_entries + configured_entries:
+        if entry not in ordered_entries:
+            ordered_entries.append(entry)
+
+    return os.pathsep.join(ordered_entries)
 
 
 def extract_credential_value(line, credential_type):
@@ -167,12 +234,16 @@ def capture_credentials(line, state):
 
 def main():
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_music_runtime()
     state = load_state()
     save_state(state)
+    process_env = os.environ.copy()
+    process_env["PATH"] = build_runtime_path()
 
     process = subprocess.Popen(
         ["./TeaSpeakServer"],
         cwd="/ts",
+        env=process_env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

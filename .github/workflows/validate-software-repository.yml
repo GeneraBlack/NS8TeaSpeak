@@ -165,13 +165,35 @@ jobs:
               "ffmpeg_command=/ts/providers/bin/ffmpeg",
               "youtubedl_command=/ts/providers/bin/youtube-dl",
               "ln -sf /usr/bin/python3 /usr/bin/python",
-              "ln -sf /usr/bin/yt-dlp /usr/bin/youtube-dl",
-              "ln -sf /usr/bin/yt-dlp /ts/providers/bin/youtube-dl",
+              'ENTRYPOINT ["/usr/bin/python3", "/usr/local/bin/teaspeak-entrypoint.py"]',
+              "exec /usr/bin/python3 /usr/bin/yt-dlp \"$@\"",
           ]
           missing = [snippet for snippet in required if snippet not in containerfile]
 
           if missing:
               print("The TeaSpeak service image is missing required music runtime hooks:", file=sys.stderr)
+              for snippet in missing:
+                  print(snippet, file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Validate TeaSpeak music runtime bootstrap
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          entrypoint = Path("images/teaspeak-service/teaspeak-entrypoint.py").read_text(encoding="utf-8")
+          required = [
+              'ensure_music_runtime()',
+              'process_env["PATH"] = build_runtime_path()',
+              '"/ts/providers/bin"',
+              'exec /usr/bin/python3 /usr/bin/yt-dlp "$@"',
+          ]
+          missing = [snippet for snippet in required if snippet not in entrypoint]
+
+          if missing:
+              print("The TeaSpeak entrypoint is missing required music bootstrap hooks:", file=sys.stderr)
               for snippet in missing:
                   print(snippet, file=sys.stderr)
               sys.exit(1)

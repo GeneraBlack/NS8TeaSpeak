@@ -25,9 +25,10 @@ RUN apt-get update \
     && ln -sf /usr/bin/ffmpeg /ts/providers/bin/ffmpeg \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/python3 /usr/local/bin/python \
-    && ln -sf /usr/bin/yt-dlp /usr/bin/youtube-dl \
-    && ln -sf /usr/bin/yt-dlp /usr/local/bin/youtube-dl \
-    && ln -sf /usr/bin/yt-dlp /ts/providers/bin/youtube-dl \
+    && printf '%s\n' '#!/bin/sh' 'exec /usr/bin/python3 /usr/bin/yt-dlp "$@"' > /usr/local/bin/youtube-dl \
+    && chmod 0755 /usr/local/bin/youtube-dl \
+    && cp /usr/local/bin/youtube-dl /usr/bin/youtube-dl \
+    && cp /usr/local/bin/youtube-dl /ts/providers/bin/youtube-dl \
     && ln -sf /ts/config/config.yml /ts/config.yml \
     && groupadd -g ${gid} teaspeak \
     && useradd -M -u ${uid} -g ${gid} teaspeak \
@@ -49,4 +50,4 @@ ENV LD_LIBRARY_PATH="/ts/libs" \
 
 USER teaspeak
 
-ENTRYPOINT ["python3", "/usr/local/bin/teaspeak-entrypoint.py"]
+ENTRYPOINT ["/usr/bin/python3", "/usr/local/bin/teaspeak-entrypoint.py"]

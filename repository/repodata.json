@@ -25,6 +25,19 @@
     "screenshots": [],
     "versions": [
       {
+        "tag": "0.1.19",
+        "testing": false,
+        "labels": {
+          "io.buildah.version": "1.43.1",
+          "org.nethserver.authorizations": "node:fwadm traefik@node:fulladm",
+          "org.nethserver.images": "ghcr.io/generablack/ns8teaspeak-service:0.1.19 ghcr.io/generablack/ns8teaspeak-web:0.1.19",
+          "org.nethserver.max-per-node": "1",
+          "org.nethserver.rootfull": "0",
+          "org.nethserver.tcp-ports-demand": "1",
+          "org.nethserver.volumes": "database files logs crashdumps certs"
+        }
+      },
+      {
         "tag": "0.1.18",
         "testing": false,
         "labels": {

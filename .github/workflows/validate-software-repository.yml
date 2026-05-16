@@ -208,6 +208,7 @@ jobs:
               '-Pquery.ssl.certificate=/ts/certs/query_certificate.pem',
               '-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem',
               '-Pweb.ssl.certificate=/ts/certs/default_certificate.pem',
+              '-Pweb.ssl.certificate.default=/ts/certs/default_certificate.pem',
               '-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem',
               'ensure_legacy_database_link()',
           ]
@@ -336,7 +337,6 @@ jobs:
           required_unit = [
               "SuccessExitStatus=3",
               "runagent get-certificate",
-              'rm -f "$cert" "$key"',
               "runtime/tls/default_certificate.pem",
               "runtime/tls/default_privatekey.pem",
           ]
@@ -363,6 +363,9 @@ jobs:
           required_entrypoint = [
               "certificate_pair_is_usable",
               "hostname_pattern_matches",
+              "sync_web_certificate_database",
+              "webcert-cert",
+              "default_certificate.crt",
               "certificate_time_is_valid",
               "clear_tls_targets",
               "clear_staged_certificates",

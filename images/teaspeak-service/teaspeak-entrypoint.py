@@ -8,6 +8,7 @@ import signal
 import ssl
 import subprocess
 import sys
+import textwrap
 from datetime import datetime, timezone
 
 
@@ -23,15 +24,19 @@ DATABASE_FILE_SUFFIXES = ("", "-wal", "-shm", "-journal")
 CERTS_DIR = TEASPEAK_ROOT / "certs"
 STAGED_TLS_DIR = STATE_DIR / "tls"
 DEFAULT_CERTIFICATE_FILENAME = "default_certificate.pem"
+DEFAULT_CERTIFICATE_CRT_FILENAME = "default_certificate.crt"
 DEFAULT_PRIVATEKEY_FILENAME = "default_privatekey.pem"
 STAGED_CERTIFICATE_FILE = STAGED_TLS_DIR / DEFAULT_CERTIFICATE_FILENAME
 STAGED_PRIVATEKEY_FILE = STAGED_TLS_DIR / DEFAULT_PRIVATEKEY_FILENAME
 TLS_SYNC_TARGETS = (
     (STAGED_CERTIFICATE_FILE, CERTS_DIR / DEFAULT_CERTIFICATE_FILENAME, 0o644),
+    (STAGED_CERTIFICATE_FILE, CERTS_DIR / DEFAULT_CERTIFICATE_CRT_FILENAME, 0o644),
     (STAGED_PRIVATEKEY_FILE, CERTS_DIR / DEFAULT_PRIVATEKEY_FILENAME, 0o600),
     (STAGED_CERTIFICATE_FILE, CERTS_DIR / "query_certificate.pem", 0o644),
     (STAGED_PRIVATEKEY_FILE, CERTS_DIR / "query_privatekey.pem", 0o600),
 )
+DEFAULT_CERTIFICATE_FILE = CERTS_DIR / DEFAULT_CERTIFICATE_FILENAME
+DEFAULT_PRIVATEKEY_FILE = CERTS_DIR / DEFAULT_PRIVATEKEY_FILENAME
 RUNTIME_STATE_FILE = STATE_DIR / "runtime-info.json"
 CAPTURED_LINES_FILE = STATE_DIR / "bootstrap-lines.log"
 PROVIDERS_DIR = TEASPEAK_ROOT / "providers"
@@ -48,6 +53,13 @@ CERTIFICATE_TIME_FORMAT = "%b %d %H:%M:%S %Y %Z"
 
 def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def load_state():
@@ -291,6 +303,100 @@ def certificate_pair_is_usable(certificate_file, privatekey_file, certificate_ho
     return True, ""
 
 
+def run_python_without_teaspeak_libs(code, *args):
+    env = os.environ.copy()
+    env["LD_LIBRARY_PATH"] = ""
+
+    return subprocess.run(
+        [sys.executable, "-c", code, *map(str, args)],
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
+def sync_web_certificate_database(certificate_host):
+    usable, reason = certificate_pair_is_usable(
+        DEFAULT_CERTIFICATE_FILE,
+        DEFAULT_PRIVATEKEY_FILE,
+        certificate_host,
+    )
+    if not usable:
+        return False, reason
+
+    if not PERSISTENT_DATABASE_FILE.exists():
+        return True, "database not initialized yet"
+
+    code = textwrap.dedent(
+        """
+        import sqlite3
+        import sys
+        import time
+        from pathlib import Path
+
+        db_path = Path(sys.argv[1])
+        cert_path = Path(sys.argv[2])
+        key_path = Path(sys.argv[3])
+
+        cert_pem = cert_path.read_text(encoding="ascii")
+        key_pem = key_path.read_text(encoding="ascii")
+        revision = str(int(time.time()))
+
+        conn = sqlite3.connect(str(db_path))
+        try:
+            table_exists = conn.execute(
+                "select 1 from sqlite_master where type='table' and name='general'"
+            ).fetchone()
+            if not table_exists:
+                print("general table does not exist")
+                sys.exit(3)
+
+            existing = dict(
+                conn.execute(
+                    "select key, value from general where key in "
+                    "('webcert-cert', 'webcert-key')"
+                ).fetchall()
+            )
+            if (
+                existing.get("webcert-cert") == cert_pem
+                and existing.get("webcert-key") == key_pem
+            ):
+                print("web certificate database already current")
+                sys.exit(0)
+
+            conn.execute(
+                "delete from general where key in "
+                "('webcert-revision', 'webcert-cert', 'webcert-key')"
+            )
+            conn.executemany(
+                "insert into general (key, value) values (?, ?)",
+                [
+                    ("webcert-revision", revision),
+                    ("webcert-cert", cert_pem),
+                    ("webcert-key", key_pem),
+                ],
+            )
+            conn.commit()
+            print("web certificate database updated")
+        finally:
+            conn.close()
+        """
+    )
+    result = run_python_without_teaspeak_libs(
+        code,
+        PERSISTENT_DATABASE_FILE,
+        DEFAULT_CERTIFICATE_FILE,
+        DEFAULT_PRIVATEKEY_FILE,
+    )
+
+    if result.stdout:
+        print(result.stdout.rstrip(), flush=True)
+
+    return result.returncode in (0, 3), result.stdout.strip()
+
+
 def ensure_symlink(path, target):
     try:
         if path.is_symlink() and os.readlink(path) == target:
@@ -415,8 +521,8 @@ def sync_staged_certificates(state):
 
     if not staged_valid:
         current_valid, current_reason = certificate_pair_is_usable(
-            CERTS_DIR / DEFAULT_CERTIFICATE_FILENAME,
-            CERTS_DIR / DEFAULT_PRIVATEKEY_FILENAME,
+            DEFAULT_CERTIFICATE_FILE,
+            DEFAULT_PRIVATEKEY_FILE,
             certificate_host,
         )
 
@@ -455,6 +561,42 @@ def sync_staged_certificates(state):
         synced=synced,
     )
     return synced or metadata_changed
+
+
+def ensure_valid_web_certificate_ready(state):
+    certificate_host = (os.environ.get("TRAEFIK_HOST") or "").strip().lower()
+    if not certificate_host:
+        return True
+
+    strict_tls = env_bool("TRAEFIK_LETS_ENCRYPT", False)
+
+    usable, reason = certificate_pair_is_usable(
+        DEFAULT_CERTIFICATE_FILE,
+        DEFAULT_PRIVATEKEY_FILE,
+        certificate_host,
+    )
+    if not usable:
+        state["tls_certificate_available"] = False
+        state["tls_certificate_host"] = certificate_host
+        state["updated_at"] = utc_now()
+        save_state(state)
+        print(
+            "[ns8teaspeak] Web TLS certificate is not valid for "
+            f"{certificate_host}: {reason}",
+            flush=True,
+        )
+        return not strict_tls
+
+    synced, sync_message = sync_web_certificate_database(certificate_host)
+    if not synced:
+        print(
+            "[ns8teaspeak] Web certificate database could not be updated: "
+            f"{sync_message}",
+            flush=True,
+        )
+        return not strict_tls
+
+    return True
 
 
 def build_runtime_path():
@@ -588,6 +730,8 @@ def main():
     if state_changed:
         save_state(state)
     save_state(state)
+    if not ensure_valid_web_certificate_ready(state):
+        sys.exit(1)
     process_env = os.environ.copy()
     process_env["PATH"] = build_runtime_path()
 
@@ -598,6 +742,7 @@ def main():
             "-Pquery.ssl.certificate=/ts/certs/query_certificate.pem",
             "-Pquery.ssl.privatekey=/ts/certs/query_privatekey.pem",
             "-Pweb.ssl.certificate=/ts/certs/default_certificate.pem",
+            "-Pweb.ssl.certificate.default=/ts/certs/default_certificate.pem",
             "-Pweb.ssl.privatekey=/ts/certs/default_privatekey.pem",
         ],
         cwd=str(TEASPEAK_ROOT),

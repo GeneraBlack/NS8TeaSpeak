@@ -11,4 +11,4 @@ Type=oneshot
 SuccessExitStatus=3
 EnvironmentFile=%S/state/environment
 WorkingDirectory=%S/state
-ExecStart=/bin/sh -ec 'mkdir -p runtime/tls; cert=runtime/tls/default_certificate.pem; key=runtime/tls/default_privatekey.pem; if [ -z "$TRAEFIK_HOST" ]; then rm -f "$cert" "$key"; exit 0; fi; rm -f "$cert" "$key"; exec runagent get-certificate --cert-file="$cert" --key-file="$key" "$TRAEFIK_HOST"'
+ExecStart=/bin/sh -ec 'mkdir -p runtime/tls; cert=runtime/tls/default_certificate.pem; key=runtime/tls/default_privatekey.pem; if [ -z "$TRAEFIK_HOST" ]; then rm -f "$cert" "$key"; exit 0; fi; exec runagent get-certificate --cert-file="$cert" --key-file="$key" "$TRAEFIK_HOST"'

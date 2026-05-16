@@ -337,6 +337,7 @@ jobs:
           required_unit = [
               "SuccessExitStatus=3",
               "runagent get-certificate",
+              'rm -f "$cert" "$key"',
               "runtime/tls/default_certificate.pem",
               "runtime/tls/default_privatekey.pem",
           ]
@@ -364,6 +365,7 @@ jobs:
               "certificate_pair_is_usable",
               "hostname_pattern_matches",
               "sync_web_certificate_database",
+              "clear_web_certificate_database",
               "webcert-cert",
               "default_certificate.crt",
               "certificate_time_is_valid",

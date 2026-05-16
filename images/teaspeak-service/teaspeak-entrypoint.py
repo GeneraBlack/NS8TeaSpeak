@@ -55,13 +55,6 @@ def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def env_bool(name, default=False):
-    value = os.environ.get(name)
-    if value is None or value.strip() == "":
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
 def load_state():
     state = {
         "server_version": os.environ.get("SERVER_VERSION", ""),
@@ -397,6 +390,45 @@ def sync_web_certificate_database(certificate_host):
     return result.returncode in (0, 3), result.stdout.strip()
 
 
+def clear_web_certificate_database():
+    if not PERSISTENT_DATABASE_FILE.exists():
+        return True, "database not initialized yet"
+
+    code = textwrap.dedent(
+        """
+        import sqlite3
+        import sys
+        from pathlib import Path
+
+        db_path = Path(sys.argv[1])
+
+        conn = sqlite3.connect(str(db_path))
+        try:
+            table_exists = conn.execute(
+                "select 1 from sqlite_master where type='table' and name='general'"
+            ).fetchone()
+            if not table_exists:
+                print("general table does not exist")
+                sys.exit(3)
+
+            conn.execute(
+                "delete from general where key in "
+                "('webcert-revision', 'webcert-cert', 'webcert-key')"
+            )
+            conn.commit()
+            print("web certificate database cleared")
+        finally:
+            conn.close()
+        """
+    )
+    result = run_python_without_teaspeak_libs(code, PERSISTENT_DATABASE_FILE)
+
+    if result.stdout:
+        print(result.stdout.rstrip(), flush=True)
+
+    return result.returncode in (0, 3), result.stdout.strip()
+
+
 def ensure_symlink(path, target):
     try:
         if path.is_symlink() and os.readlink(path) == target:
@@ -568,8 +600,6 @@ def ensure_valid_web_certificate_ready(state):
     if not certificate_host:
         return True
 
-    strict_tls = env_bool("TRAEFIK_LETS_ENCRYPT", False)
-
     usable, reason = certificate_pair_is_usable(
         DEFAULT_CERTIFICATE_FILE,
         DEFAULT_PRIVATEKEY_FILE,
@@ -585,7 +615,8 @@ def ensure_valid_web_certificate_ready(state):
             f"{certificate_host}: {reason}",
             flush=True,
         )
-        return not strict_tls
+        clear_web_certificate_database()
+        return False
 
     synced, sync_message = sync_web_certificate_database(certificate_host)
     if not synced:
@@ -594,7 +625,7 @@ def ensure_valid_web_certificate_ready(state):
             f"{sync_message}",
             flush=True,
         )
-        return not strict_tls
+        return False
 
     return True
 
